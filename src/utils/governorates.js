@@ -1,0 +1,33 @@
+export const shippingPrices = {
+  "Cairo": 50,
+  "Giza": 50,
+  "Alexandria": 70,
+  "6th of October": 60,
+  "Al Sharqia": 60,
+  "Dakahlia": 65,
+  "Red Sea": 100,
+  "Beheira": 70,
+  "Fayoum": 60,
+  "Gharbia": 60,
+  "Ismailia": 60,
+  "Menofia": 60,
+  "Minya": 75,
+  "Qaliubiya": 55,
+  "New Valley": 120,
+  "Suez": 70,
+  "Aswan": 120,
+  "Assiut": 90,
+  "Beni Suef": 70,
+  "Port Said": 80,
+  "Damietta": 80,
+  "South Sinai": 110,
+  "Kafr El Sheikh": 70,
+  "Matrouh": 130,
+  "Luxor": 110,
+  "Qena": 100,
+  "North Sinai": 150,
+  "Sohag": 100,
+  "Helwan": 55
+};
+
+export const Governorates = Object.keys(shippingPrices);
