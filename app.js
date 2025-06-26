@@ -49,7 +49,7 @@ app.use((err, req, res, next) => {
 });
 
 app.get("/api", (req, res) => {
-  return res.status(200).json({ message: "Welcome to E-commerce API" });
+  return res.status(200).json({ message: "Welcome to API" });
 });
 app.use((req, res) => {
   return res.status(404).json({ message: "API Not Found" });
