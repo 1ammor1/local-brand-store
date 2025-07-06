@@ -76,7 +76,7 @@ export const getProductsByCategory = async (req, res, next) => {
     }
 
     const products = await query;
-    res.status(200).json({ total, products });
+    res.status(200).json({ totalProducts, products });
 
   } catch (err) {
     next(err);
