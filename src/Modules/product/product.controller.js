@@ -15,7 +15,8 @@ export const getAllProducts = async (req, res, next) => {
     let productsQuery = ProductModel.find()
       .sort({ createdAt: -1 })
       .populate("category")
-      .select("title description originalPrice quantity category images colors size");
+      .select("title description originalPrice price quantity category images.url colors size");
+
 
     let totalProducts = await ProductModel.countDocuments();
 
@@ -57,7 +58,8 @@ export const getProductsByCategory = async (req, res, next) => {
     let query = ProductModel.find({ category })
       .sort({ createdAt: -1 })
       .populate("category")
-      .select("title description originalPrice quantity category images colors size");
+      .select("title description originalPrice price quantity category images.url colors size");
+
 
     const totalProducts = await ProductModel.countDocuments({ category });
 
