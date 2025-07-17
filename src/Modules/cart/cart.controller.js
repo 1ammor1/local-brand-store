@@ -37,7 +37,6 @@ export const addToCart = async (req, res, next) => {
         items: [{ product: productId, quantity, color, size }],
       });
     } else {
-      
       const existingItem = cart.items.find(
         item =>
           item.product.toString() === productId &&
@@ -73,6 +72,11 @@ export const addToCart = async (req, res, next) => {
 
       await cart.save();
     }
+    
+    await cart.populate({
+      path: "items.product",
+      select: "title price imageUrl originalPrice discount quantity"
+    });
 
     return res.status(200).json({ message: "Added to cart", cart });
 
@@ -80,6 +84,7 @@ export const addToCart = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 export const getCart = async (req, res, next) => {
