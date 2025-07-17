@@ -5,7 +5,7 @@ import validation from "../../middleware/validation.middleware.js";
 import * as orderValidation from "./order.validation.js"
 const router = express.Router();
 
-router.post("/", authentication, createOrder);
+router.post("/", authentication,validation(orderValidation.createOrderSchema), createOrder);
 
 router.get("/user", authentication, getUserOrders);
 
