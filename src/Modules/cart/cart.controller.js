@@ -73,12 +73,23 @@ export const addToCart = async (req, res, next) => {
       await cart.save();
     }
     
-    await cart.populate({
+    /*await cart.populate({
       path: "items.product",
       select: "title price imageUrl originalPrice discount quantity"
     });
 
-    return res.status(200).json({ message: "Added to cart", cart });
+    return res.status(200).json({ message: "Added to cart", cart });*/
+
+    await cart.populate({
+  path: "items.product",
+  select: "title price originalPrice discount quantity images"
+});
+
+return res.status(200).json({
+  message: "Added to cart",
+  cart: cart.toObject({ virtuals: true })  // <<< مهم جدًا
+});
+
 
   } catch (err) {
     next(err);
