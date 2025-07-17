@@ -114,3 +114,116 @@ export const createOrder = async (req, res, next) => {
     next(err);
   }
 };
+
+export const getSingleOrder = async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const order = await OrderModel.findById(id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    res.status(200).json({ order });
+  } catch (err) {
+    next(err);
+  }
+}
+export const getAllOrders = async (req, res, next) => {
+  try {
+    const orders = await OrderModel.find()
+      .sort({ createdAt: -1 });
+    return res.status(200).json({ orders });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getOrdersByStatus = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+    if(!status) return res.status(400).json({ message: "Status is required" });
+    if(status !== "pending" && status !== "confirmed" && status !== "shipped" && status !== "delivered" && status !== "cancelled") return res.status(400).json({ message: "status must be pending, confirmed, shipped, delivered, or cancelled" });
+    const orders = await OrderModel.find({ status }).sort({ createdAt: -1 });
+    if (!orders) return res.status(404).json({ message: "Orders not found" });
+    res.status(200).json({ orders });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getUserOrders = async (req, res, next) => {
+  try {
+    const orders = await OrderModel.find({ user: req.user.id })
+  .sort({ createdAt: -1 });
+    res.status(200).json({ orders });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const cancelOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const order = await OrderModel.findById(id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if(order.user._id.toString() !== req.user.id && req.user.role !== "admin") return res.status(401).json({ message: "You are not authorized to cancel this order" });
+    if(order.status !== "pending") return res.status(400).json({ message: "Order can only be cancelled if it is in pending status" });
+    order.status = "cancelled";
+    await order.save();
+    const admins = await UserModel.find({ role: "admin" });
+    const adminNotifs = admins.map(admin => ({
+    recipient: admin._id,
+    title: "Order cancelled ❌",
+    message: `${order.orderNumber} has been cancelled by the user.`,
+    order: order._id
+  }));
+
+  const userNotif = {
+    recipient: order.user._id,
+    title: "Your order has been cancelled ❌",
+    message: `Your order ${order.orderNumber} has been successfully cancelled.`,
+    order: order._id
+  };
+
+
+    await NotificationModel.insertMany([...adminNotifs, userNotif]);
+    res.status(200).json({ message: "Order cancelled", order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export const updateOrderStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const order = await OrderModel.findById(id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.status = status;
+    await order.save();
+    await NotificationModel.create({
+    recipient: order.user._id,
+    title: "Update order status 🔄",
+    message: `Your order status ${order.orderNumber} has been updated to "${order.status}".`,
+    order: order._id
+  });
+
+
+    res.status(200).json({ message: "Order status updated", order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const order = await OrderModel.findById(id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    await OrderModel.findByIdAndDelete(id);
+    res.status(200).json({ message: "Order deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
