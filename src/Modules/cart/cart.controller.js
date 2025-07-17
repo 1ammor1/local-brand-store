@@ -3,12 +3,20 @@ import { ProductModel } from "../../DB/models/product.model.js";
 
 export const addToCart = async (req, res, next) => {
   try {
-    const { productId, quantity = 1 } = req.body;
+    const { productId, quantity = 1, color, size } = req.body;
     const userId = req.user.id;
 
     const product = await ProductModel.findById(productId);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
+    }
+
+    if (!product.colors.includes(color)) {
+      return res.status(400).json({ message: `Color "${color}" is not available for this product` });
+    }
+
+    if (!product.size.includes(size)) {
+      return res.status(400).json({ message: `Size "${size}" is not available for this product` });
     }
 
     if (quantity > product.quantity) {
@@ -26,10 +34,16 @@ export const addToCart = async (req, res, next) => {
 
       cart = await CartModel.create({
         user: userId,
-        items: [{ product: productId, quantity }],
+        items: [{ product: productId, quantity, color, size }],
       });
     } else {
-      const existingItem = cart.items.find(item => item.product.toString() === productId);
+      
+      const existingItem = cart.items.find(
+        item =>
+          item.product.toString() === productId &&
+          item.color === color &&
+          item.size === size
+      );
 
       if (existingItem) {
         const totalQty = existingItem.quantity + quantity;
@@ -54,7 +68,7 @@ export const addToCart = async (req, res, next) => {
           });
         }
 
-        cart.items.push({ product: productId, quantity });
+        cart.items.push({ product: productId, quantity, color, size });
       }
 
       await cart.save();
@@ -66,6 +80,7 @@ export const addToCart = async (req, res, next) => {
     next(err);
   }
 };
+
 
 export const getCart = async (req, res, next) => {
   try {
