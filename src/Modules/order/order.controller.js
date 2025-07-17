@@ -105,8 +105,7 @@ export const createOrder = async (req, res, next) => {
 
     await NotificationModel.insertMany(notifications);
 
-    // تنظيف الكارت
-    await CartModel.findOneAndUpdate({ user: userId }, { items: [] });
+    await CartModel.deleteOne({ user: userId });
 
     res.status(201).json({ message: "Order created", order });
 
