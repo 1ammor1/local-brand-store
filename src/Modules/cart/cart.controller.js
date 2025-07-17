@@ -84,14 +84,43 @@ export const addToCart = async (req, res, next) => {
 
 export const getCart = async (req, res, next) => {
   try {
-    const cart = await CartModel.findOne({ user: req.user.id }).populate("items.product");
-    if (!cart) return res.status(200).json({ cart: [], message: "Cart is empty" });
+    const cart = await CartModel.findOne({ user: req.user.id }).populate({
+      path: "items.product",
+      select: "title price originalPrice discount images imageUrl quantity"
+    });
 
-    res.status(200).json({ cart });
+    if (!cart) {
+      return res.status(200).json({ cart: [], message: "Cart is empty" });
+    }
+
+    let totalCartPrice = 0;
+    const itemsWithTotals = cart.items.map(item => {
+      const product = item.product;
+      const itemTotal = product.price * item.quantity;
+      totalCartPrice += itemTotal;
+
+      return {
+        ...item.toObject(), 
+        itemTotalPrice: itemTotal
+      };
+    });
+
+    res.status(200).json({
+      cart: {
+        _id: cart._id,
+        user: cart.user,
+        items: itemsWithTotals,
+        totalPrice: totalCartPrice,
+        createdAt: cart.createdAt,
+        updatedAt: cart.updatedAt
+      }
+    });
+
   } catch (err) {
     next(err);
   }
 };
+
 
 export const removeFromCart = async (req, res, next) => {
   try {
