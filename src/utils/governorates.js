@@ -1,21 +1,21 @@
 export const shippingPrices = {
-  "Cairo": 70,
-  "Tagamoa": 70,
-  "Rehab":70,
-  "New Cairo City": 90,
-  "Madinaty": 90,
-  "Shorouk": 90,
-  "Obour": 90,
-  "Mostakbal City": 90,
-  "Badr": 90,
-  "Giza": 80,
-  "Mohandessin": 80,
-  "Al Haram": 80,
-  "Al Agouzah": 80,
-  "Dokki": 80,
-  "6th of October": 90,
-  "October Gardens": 90,
-  "Pyramids Gardens": 90
+  "Cairo": 85,
+  "Tagamoa": 85,
+  "Rehab": 85,
+  "New Cairo City": 85,
+  "Madinaty": 85,
+  "Shorouk": 85,
+  "Obour": 85,
+  "Mostakbal City": 85,
+  "Badr City": 85,
+  "Giza": 85,
+  "Mohandessin": 85,
+  "Al Haram": 85,
+  "Al Agouzah": 85,
+  "Dokki": 85,
+  "6th of October": 85,
+  "October Gardens": 85,
+  "Pyramids Gardens": 85
 };
 
 export const Governorates = Object.keys(shippingPrices);
