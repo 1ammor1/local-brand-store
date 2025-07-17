@@ -110,7 +110,7 @@ export const getCart = async (req, res, next) => {
         _id: cart._id,
         user: cart.user,
         items: itemsWithTotals,
-        totalPrice: totalCartPrice,
+        totalCartPrice: totalCartPrice,
         createdAt: cart.createdAt,
         updatedAt: cart.updatedAt
       }
