@@ -150,13 +150,13 @@ export const updateItemQuantity = async (req, res, next) => {
 
 export const clearCart = async (req, res, next) => {
   try {
-    const cart = await CartModel.findOne({ user: req.user.id });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
+    const deletedCart = await CartModel.findOneAndDelete({ user: req.user.id });
 
-    cart.items = [];
-    await cart.save();
+    if (!deletedCart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
 
-    res.status(200).json({ message: "Cart cleared" });
+    res.status(200).json({ message: "Cart deleted successfully" });
   } catch (err) {
     next(err);
   }
