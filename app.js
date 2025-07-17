@@ -10,7 +10,6 @@ import productRoutes from "./src/Modules/product/product.routes.js";
 import cartRoutes from "./src/Modules/cart/cart.routes.js";
 import orderRoutes from "./src/Modules/order/order.routes.js";
 import discountRouter from "./src/Modules/discount/discount.routes.js";
-import checkoutRouter from "./src/Modules/checkout/checkout.routes.js";
 import notficationRouter from "./src/Modules/notification/notification.routes.js";
 import { connectDB } from "./src/DB/connection.js";
 import helmet from "helmet";
@@ -37,7 +36,6 @@ app.use("/api/category", categoryRoutes);
 app.use("/api/product", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/discount", discountRouter);
-app.use("/api/checkout", checkoutRouter);
 app.use("/api/order", orderRoutes);
 app.use("/api/notification", notficationRouter);
 
