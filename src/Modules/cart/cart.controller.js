@@ -140,8 +140,11 @@ export const getCart = async (req, res, next) => {
 
 export const removeFromCart = async (req, res, next) => {
   try {
-    const { productId } = req.params;
-    const { color, size } = req.body;
+    const { productId, color, size } = req.params;
+
+    if (!color || !size) {
+      return res.status(400).json({ message: "Color and size are required in params" });
+    }
 
     const product = await ProductModel.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
@@ -158,11 +161,20 @@ export const removeFromCart = async (req, res, next) => {
 
     await cart.save();
 
-    res.status(200).json({ message: "Item removed", cart });
+    await cart.populate({
+      path: "items.product",
+      select: "title price originalPrice discount quantity images"
+    });
+
+    res.status(200).json({
+      message: "Item removed",
+      cart: cart.toObject({ virtuals: true })
+    });
   } catch (err) {
     next(err);
   }
 };
+
 
 
 export const updateItemQuantity = async (req, res, next) => {
