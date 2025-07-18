@@ -15,7 +15,7 @@ router.use(authentication);
 
 router.post("/",validation(cartValidation.addToCartSchema),addToCart);               
 router.get("/", getCart);                        
-router.delete("/:productId",validation(cartValidation.removeFromCartSchema) ,removeFromCart);    
+router.delete("/:productId/:color/:size",validation(cartValidation.removeFromCartSchema) ,removeFromCart);    
 router.patch("/:productId",validation(cartValidation.updateQuantityBodySchema) ,updateItemQuantity); 
 router.delete("/", clearCart);                   
 
