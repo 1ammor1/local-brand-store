@@ -123,24 +123,48 @@ export const getCart = async (req, res, next) => {
   try {
     const cart = await CartModel.findOne({ user: req.user.id }).populate({
       path: "items.product",
-      select: "title price originalPrice discount images imageUrl variants"
+      select: "title price originalPrice discount images imageUrl"
     });
 
     if (!cart || !cart.items.length) {
-      return res.status(200).json({ cart: [], message: "Cart is empty" });
+      return res.status(200).json({
+        cartDetails: {
+          items: [],
+          subTotal: 0
+        },
+        message: "Cart is empty"
+      });
     }
 
-    const formatted = formatCartWithSubTotal(cart);
+    let subTotal = 0;
 
-    res.status(200).json({
-      cart: formatted.items, // ← رجّع الـ items على طول
-      subTotal: formatted.subTotal
+    const formattedItems = cart.items.map(item => {
+      const price = item.product?.price ?? 0;
+      const quantity = item.quantity ?? 0;
+      const itemTotal = price * quantity;
+
+      subTotal += itemTotal;
+
+      return {
+        product: item.product,
+        quantity: item.quantity,
+        color: item.color,
+        size: item.size
+      };
+    });
+
+    return res.status(200).json({
+      cartDetails: {
+        items: formattedItems,
+        subTotal: parseFloat(subTotal.toFixed(2))
+      }
     });
 
   } catch (err) {
     next(err);
   }
 };
+
 
 
 // ✅ Remove from cart
