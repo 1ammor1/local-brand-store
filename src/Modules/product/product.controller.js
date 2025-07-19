@@ -87,37 +87,25 @@ export const getProductsByCategory = async (req, res, next) => {
 
 export const getProductById = async (req, res, next) => {
   try {
-    const { productId } = req.params;
+    const product = await ProductModel.findById(req.params.id).populate("category");
+    if (!product) return res.status(404).json({ message: "Product not found" });
 
-    // ✅ تأكد إن الـ ID صالح
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return res.status(400).json({ message: "Invalid product ID" });
-    }
+    // ✅ استخرج الألوان والمقاسات الفريدة من الـ variants
+    const colors = [...new Set(product.variants.map(v => v.color))];
+    const sizes = [...new Set(product.variants.map(v => v.size))];
 
-    const product = await ProductModel.findById(productId)
-      .populate("category", "name")
-      .select("-__v");
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    // ✅ استخراج الألوان والمقاسات من الـ variants
-    const uniqueSizes = [...new Set(product.variants.map(v => v.size))];
-    const uniqueColors = [...new Set(product.variants.map(v => v.color))];
-
-    const responseData = {
+    // ✅ جهز الريسبونس مع دمجهم
+    const formattedProduct = {
       ...product.toObject(),
-      size: uniqueSizes,     // ✅ اسم متوافق مع الفرونت
-      colors: uniqueColors
+      colors,
+      size: sizes,
     };
 
-    res.status(200).json(responseData);
+    res.status(200).json({ product: formattedProduct });
   } catch (err) {
     next(err);
   }
 };
-
 
 export const createProduct = async (req, res, next) => {
   try {
