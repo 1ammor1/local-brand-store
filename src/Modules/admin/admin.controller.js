@@ -99,7 +99,7 @@ export const getExtendedStats = async (req, res, next) => {
         {
           $group: {
             _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-            total: { $sum: "$totalPrice" }
+            total: { $sum: "$subTotal" }
           }
         }
       ]),
