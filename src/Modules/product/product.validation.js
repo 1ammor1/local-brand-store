@@ -14,13 +14,31 @@ export const createProductSchema = Joi.object({
   category: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required(),
 
   // ✅ بدل sizes + colors + quantity، نستخدم:
-  variants: Joi.items(
-    Joi.object({
-      size: Joi.string().required(),
-      color: Joi.string().required(),
-      quantity: Joi.number().integer().min(0).required()
-    })
-  ).min(1).required(),
+  variants: Joi.string()
+  .custom((value, helpers) => {
+    try {
+      const parsed = JSON.parse(value);
+      if (!Array.isArray(parsed)) {
+        return helpers.message('"variants" must be an array');
+      }
+
+      for (const v of parsed) {
+        if (
+          typeof v.size !== "string" ||
+          typeof v.color !== "string" ||
+          typeof v.quantity !== "number"
+        ) {
+          return helpers.message('"variants" array is invalid');
+        }
+      }
+
+      return value; // ✅ validation passed
+    } catch (e) {
+      return helpers.message('"variants" must be a valid JSON array');
+    }
+  })
+  .required(),
+
 
 }).unknown(true);
 
