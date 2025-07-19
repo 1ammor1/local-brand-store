@@ -1,7 +1,5 @@
 import Joi from "joi";
 
-import Joi from "joi";
-
 export const createProductSchema = Joi.object({
   title: Joi.string().min(3).max(100).required(),
   description: Joi.string().max(1000).required(),
