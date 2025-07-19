@@ -1,15 +1,44 @@
 import { CartModel } from "../../DB/models/cart.model.js";
 import { ProductModel } from "../../DB/models/product.model.js";
 
+// 🟢 دالة مساعدة لحساب subTotal
+function formatCartWithSubTotal(cartDoc) {
+  if (!cartDoc || !cartDoc.items) return cartDoc;
+
+  let subTotal = 0;
+
+  const itemsWithTotals = cartDoc.items.map(item => {
+    const product = item.product;
+    const price = product.price || 0;
+    const quantity = item.quantity || 0;
+
+    const itemTotal = price * quantity;
+    subTotal += itemTotal;
+
+    return {
+      ...item.toObject(),
+      itemTotalPrice: itemTotal
+    };
+  });
+
+  return {
+    _id: cartDoc._id,
+    user: cartDoc.user,
+    items: itemsWithTotals,
+    subTotal: parseFloat(subTotal.toFixed(2)),
+    createdAt: cartDoc.createdAt,
+    updatedAt: cartDoc.updatedAt
+  };
+}
+
+// 🟡 addToCart
 export const addToCart = async (req, res, next) => {
   try {
     const { productId, quantity = 1, color, size } = req.body;
     const userId = req.user.id;
 
     const product = await ProductModel.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
+    if (!product) return res.status(404).json({ message: "Product not found" });
 
     if (!product.colors.includes(color)) {
       return res.status(400).json({ message: `Color "${color}" is not available for this product` });
@@ -27,9 +56,7 @@ export const addToCart = async (req, res, next) => {
 
     if (!cart) {
       if (quantity > 8) {
-        return res.status(400).json({
-          message: "You can't add more than 8 pieces of this product to the cart",
-        });
+        return res.status(400).json({ message: "You can't add more than 8 pieces of this product to the cart" });
       }
 
       cart = await CartModel.create({
@@ -44,60 +71,42 @@ export const addToCart = async (req, res, next) => {
           item.size === size
       );
 
+      const totalQty = (existingItem?.quantity || 0) + quantity;
+
+      if (totalQty > 8) {
+        return res.status(400).json({ message: "You can't add more than 8 pieces of this product to the cart" });
+      }
+
+      if (totalQty > product.quantity) {
+        return res.status(400).json({
+          message: `Only ${product.quantity - (existingItem?.quantity || 0)} more available in stock`,
+        });
+      }
+
       if (existingItem) {
-        const totalQty = existingItem.quantity + quantity;
-
-        if (totalQty > 8) {
-          return res.status(400).json({
-            message: "You can't add more than 8 pieces of this product to the cart",
-          });
-        }
-
-        if (totalQty > product.quantity) {
-          return res.status(400).json({
-            message: `Only ${product.quantity - existingItem.quantity} more available in stock`,
-          });
-        }
-
         existingItem.quantity = totalQty;
       } else {
-        if (quantity > 8) {
-          return res.status(400).json({
-            message: "You can't add more than 8 pieces of this product to the cart",
-          });
-        }
-
         cart.items.push({ product: productId, quantity, color, size });
       }
 
       await cart.save();
     }
-    
-    /*await cart.populate({
-      path: "items.product",
-      select: "title price imageUrl originalPrice discount quantity"
-    });
-
-    return res.status(200).json({ message: "Added to cart", cart });*/
 
     await cart.populate({
-  path: "items.product",
-  select: "title price originalPrice discount quantity images"
-});
+      path: "items.product",
+      select: "title price originalPrice discount quantity images"
+    });
 
-return res.status(200).json({
-  message: "Added to cart",
-  cart: cart.toObject({ virtuals: true })  // <<< مهم جدًا
-});
-
-
+    return res.status(200).json({
+      message: "Added to cart",
+      cart: formatCartWithSubTotal(cart)
+    });
   } catch (err) {
     next(err);
   }
 };
 
-
-
+// 🟡 getCart
 export const getCart = async (req, res, next) => {
   try {
     const cart = await CartModel.findOne({ user: req.user.id }).populate({
@@ -109,27 +118,8 @@ export const getCart = async (req, res, next) => {
       return res.status(200).json({ cart: [], message: "Cart is empty" });
     }
 
-    let subTotal = 0;
-    const itemsWithTotals = cart.items.map(item => {
-      const product = item.product;
-      const itemTotal = product.price * item.quantity;
-      subTotal += itemTotal;
-
-      return {
-        ...item.toObject(), 
-        itemTotalPrice: itemTotal
-      };
-    });
-
     res.status(200).json({
-      cart: {
-        _id: cart._id,
-        user: cart.user,
-        items: itemsWithTotals,
-        subTotal: subTotal,
-        createdAt: cart.createdAt,
-        updatedAt: cart.updatedAt
-      }
+      cart: formatCartWithSubTotal(cart)
     });
 
   } catch (err) {
@@ -137,7 +127,7 @@ export const getCart = async (req, res, next) => {
   }
 };
 
-
+// 🟡 removeFromCart
 export const removeFromCart = async (req, res, next) => {
   try {
     const { productId, color, size } = req.params;
@@ -168,14 +158,14 @@ export const removeFromCart = async (req, res, next) => {
 
     res.status(200).json({
       message: "Item removed",
-      cart: cart.toObject({ virtuals: true })
+      cart: formatCartWithSubTotal(cart)
     });
   } catch (err) {
     next(err);
   }
 };
 
-
+// 🟡 updateItemQuantity
 export const updateItemQuantity = async (req, res, next) => {
   try {
     const { productId, color, size } = req.params;
@@ -212,7 +202,6 @@ export const updateItemQuantity = async (req, res, next) => {
         return res.status(200).json({ message: "Cart is now empty and has been removed" });
       }
     } else {
-      // ✅ Just update quantity
       cart.items[itemIndex].quantity = quantity;
     }
 
@@ -225,14 +214,14 @@ export const updateItemQuantity = async (req, res, next) => {
 
     res.status(200).json({
       message: quantity === 0 ? "Item removed from cart" : "Quantity updated",
-      cart: cart.toObject({ virtuals: true })
+      cart: formatCartWithSubTotal(cart)
     });
   } catch (err) {
     next(err);
   }
 };
 
-
+// 🟡 clearCart (مافيش subTotal هنا)
 export const clearCart = async (req, res, next) => {
   try {
     const deletedCart = await CartModel.findOneAndDelete({ user: req.user.id });
