@@ -9,7 +9,7 @@ export const createOrderSchema = Joi.object({
     addressLine: Joi.string().min(5).max(255).required(),
     city: Joi.string().min(2).max(100).required(),
     gov: Joi.string().valid(...Governorates).required(),
-    country: Joi.string().valid("Egypt").required(),
+    country: Joi.string().default("Egypt").optional(),
   }).required(),
 
   notes: Joi.string().allow("").optional(),
