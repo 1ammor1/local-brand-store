@@ -21,22 +21,12 @@ export const createOrder = async (req, res, next) => {
       paymentMethod = "cash"
     } = req.body;
 
-    // تحقق من صحة gov
     if (!gov || !Governorates.includes(gov)) {
       return res.status(400).json({ message: "Valid shipping address is required" });
     }
 
     const shipping = shippingPrices[gov] || 0;
-
-    const shippingAddress = {
-      fullName,
-      phone,
-      anotherPhone,
-      addressLine,
-      city,
-      gov,
-      country
-    };
+    const shippingAddress = { fullName, phone, anotherPhone, addressLine, city, gov, country };
 
     const cart = await CartModel.findOne({ user: userId }).populate("items.product");
     if (!cart || !cart.items.length) {
@@ -56,12 +46,19 @@ export const createOrder = async (req, res, next) => {
 
     for (const item of cart.items) {
       const product = item.product;
+      const { color, size, quantity } = item;
 
-      if (!product || product.quantity < item.quantity) {
-        return res.status(400).json({ message: `Insufficient quantity for: ${product?.title || "unknown product"}` });
+      if (!product) continue;
+
+      const variant = product.variants.find(v => v.color === color && v.size === size);
+      if (!variant) {
+        return res.status(400).json({ message: `Variant not found for product: ${product.title}` });
       }
 
-      const quantity = item.quantity;
+      if (variant.quantity < quantity) {
+        return res.status(400).json({ message: `Insufficient stock for ${product.title} (${color}, ${size})` });
+      }
+
       const originalPrice = product.originalPrice || product.price;
       let discountValuePerItem = 0;
       let priceAfterDiscount = originalPrice;
@@ -74,11 +71,8 @@ export const createOrder = async (req, res, next) => {
         priceAfterDiscount = originalPrice - discountValuePerItem;
       }
 
-      if (priceAfterDiscount < 0) priceAfterDiscount = 0;
-
       discountValuePerItem = parseFloat(discountValuePerItem.toFixed(2));
       priceAfterDiscount = parseFloat(priceAfterDiscount.toFixed(2));
-
       const totalDiscount = parseFloat((discountValuePerItem * quantity).toFixed(2));
       const totalForThisItem = parseFloat((priceAfterDiscount * quantity).toFixed(2));
       const totalOriginalPrice = parseFloat((originalPrice * quantity).toFixed(2));
@@ -89,6 +83,8 @@ export const createOrder = async (req, res, next) => {
       orderItems.push({
         product: product._id,
         quantity,
+        color,
+        size,
         snapshot: {
           title: product.title,
           image: product.images?.[0]?.url || "",
@@ -98,11 +94,14 @@ export const createOrder = async (req, res, next) => {
           discountValuePerItem,
           totalDiscount,
           totalForThisItem,
-          totalOriginalPrice
+          totalOriginalPrice,
+          color,
+          size
         },
       });
 
-      product.quantity -= quantity;
+      // تحديث كمية الـ variant
+      variant.quantity -= quantity;
       await product.save();
     }
 
