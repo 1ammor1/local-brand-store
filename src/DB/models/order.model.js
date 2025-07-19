@@ -50,7 +50,7 @@ const orderSchema = new mongoose.Schema(
       addressLine: { type: String, required: true },
       city: { type: String, required: true },
       gov: { type: String, required: true },
-      country: { type: String, required: false }
+      country: { type: String, required: true }
     },
     notes: { type: String },
   },
