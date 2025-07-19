@@ -123,7 +123,7 @@ export const getCart = async (req, res, next) => {
   try {
     const cart = await CartModel.findOne({ user: req.user.id }).populate({
       path: "items.product",
-      select: "title price originalPrice discount images imageUrl"
+      select: "title price originalPrice images"
     });
 
     if (!cart || !cart.items.length) {
@@ -131,22 +131,29 @@ export const getCart = async (req, res, next) => {
         cartDetails: {
           items: [],
           subTotal: 0
-        },
-        message: "Cart is empty"
+        }
       });
     }
 
     let subTotal = 0;
 
     const formattedItems = cart.items.map(item => {
-      const price = item.product?.price ?? 0;
-      const quantity = item.quantity ?? 0;
-      const itemTotal = price * quantity;
+      const product = item.product;
+      const quantity = item.quantity || 0;
+      const price = product?.price || 0;
 
-      subTotal += itemTotal;
+      subTotal += price * quantity;
 
       return {
-        product: item.product,
+        product: {
+          _id: product._id,
+          id: product._id, // ✅ مهم عشان الفرونت بيستخدم `id`
+          title: product.title,
+          originalPrice: product.originalPrice,
+          price: product.price,
+          imageUrl: product.images?.[0]?.url || "", // ✅ عشان الفرونت بيستخدمها
+          images: product.images
+        },
         quantity: item.quantity,
         color: item.color,
         size: item.size
