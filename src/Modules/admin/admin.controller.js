@@ -114,10 +114,10 @@ export const getExtendedStats = async (req, res, next) => {
         }
       ]),
       OrderModel.aggregate([
-        { $group: { _id: null, total: { $sum: "$totalPrice" } } }
+        { $group: { _id: null, total: { $sum: "$subTotal" } } }
       ]).then(res => res[0]?.total || 0),
       OrderModel.aggregate([
-        { $group: { _id: null, avg: { $avg: "$totalPrice" } } }
+        { $group: { _id: null, avg: { $avg: "$subTotal" } } }
       ]).then(res => parseFloat((res[0]?.avg || 0).toFixed(2))),
       OrderModel.aggregate([
         { $group: { _id: "$status", count: { $sum: 1 } } }
