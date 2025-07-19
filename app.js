@@ -62,3 +62,4 @@ app.listen(PORT, () => {
 
 });
 import "./src/utils/logoutInactiveUsers.js";
+import "./src/utils/userCleanupJob.js";
