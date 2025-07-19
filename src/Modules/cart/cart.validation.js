@@ -16,7 +16,7 @@ export const removeFromCartSchema = Joi.object({
 
 export const updateQuantityBodySchema = Joi.object({
   productId: Joi.string().length(24).hex().required(), 
-  quantity: Joi.number().integer().min(1).required(),
+  quantity: Joi.number().integer().min(0).required(),
   color: Joi.string().required(),
   size: Joi.string().required()
 });
