@@ -60,8 +60,9 @@ export const createOrder = async (req, res, next) => {
 
       const totalDiscount = parseFloat((discountValuePerItem * quantity).toFixed(2));
       const totalForThisItem = parseFloat((priceAfterDiscount * quantity).toFixed(2));
+      const totalOriginalPrice = parseFloat((originalPrice * quantity).toFixed(2)); // 🟢 الجديد
 
-      subTotal += totalForThisItem;
+      subTotal += totalOriginalPrice; // 🟢 التعديل هنا
       totalDiscountAllItems += totalDiscount;
 
       orderItems.push({
@@ -76,6 +77,7 @@ export const createOrder = async (req, res, next) => {
           discountValuePerItem,
           totalDiscount,
           totalForThisItem,
+          totalOriginalPrice // 🟢 لو حابب تظهره في snapshot
         },
       });
 
@@ -84,7 +86,8 @@ export const createOrder = async (req, res, next) => {
     }
 
     subTotal = parseFloat(subTotal.toFixed(2));
-    const Total = parseFloat((subTotal + shipping).toFixed(2));
+    totalDiscountAllItems = parseFloat(totalDiscountAllItems.toFixed(2));
+    const Total = parseFloat((subTotal - totalDiscountAllItems + shipping).toFixed(2)); // 🟢 تعديل الحساب هنا
 
     const order = await OrderModel.create({
       user: userId,
