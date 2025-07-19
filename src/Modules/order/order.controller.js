@@ -55,8 +55,11 @@ export const createOrder = async (req, res, next) => {
 
       if (priceAfterDiscount < 0) priceAfterDiscount = 0;
 
-      const totalDiscount = discountValuePerItem * quantity;
-      const totalForThisItem = priceAfterDiscount * quantity;
+      discountValuePerItem = parseFloat(discountValuePerItem.toFixed(2));
+      priceAfterDiscount = parseFloat(priceAfterDiscount.toFixed(2));
+
+      const totalDiscount = parseFloat((discountValuePerItem * quantity).toFixed(2));
+      const totalForThisItem = parseFloat((priceAfterDiscount * quantity).toFixed(2));
 
       subTotal += totalForThisItem;
       totalDiscountAllItems += totalDiscount;
@@ -80,7 +83,8 @@ export const createOrder = async (req, res, next) => {
       await product.save();
     }
 
-    const Total = subTotal + shipping;
+    subTotal = parseFloat(subTotal.toFixed(2));
+    const Total = parseFloat((subTotal + shipping).toFixed(2));
 
     const order = await OrderModel.create({
       user: userId,
@@ -104,11 +108,9 @@ export const createOrder = async (req, res, next) => {
     }));
 
     await NotificationModel.insertMany(notifications);
-
     await CartModel.deleteOne({ user: userId });
 
     res.status(201).json({ message: "Order created", order });
-
   } catch (err) {
     next(err);
   }
