@@ -89,9 +89,7 @@ export const getProductById = async (req, res, next) => {
   try {
     const { productId } = req.params;
 
-    const product = await ProductModel.findById(productId)
-      .populate("category", "name")
-      .select("-__v");
+    const product = await ProductModel.findById(productId);
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
