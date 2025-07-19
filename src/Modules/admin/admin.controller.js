@@ -85,9 +85,6 @@ export const getExtendedStats = async (req, res, next) => {
       ordersThisMonth,
       rawDailyRevenue,
       zeroStockProducts,
-      rawOrdersPerDay,
-      totalRevenue,
-      avgOrderValue,
       ordersByStatus,
       topSellingProducts,
       categoryRevenue,
@@ -97,7 +94,6 @@ export const getExtendedStats = async (req, res, next) => {
       ProductModel.countDocuments(),
       OrderModel.countDocuments(),
       OrderModel.countDocuments({ createdAt: { $gte: startOfMonth } }),
-
       OrderModel.aggregate([
         { $match: { createdAt: { $gte: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000) } } },
         {
@@ -107,38 +103,18 @@ export const getExtendedStats = async (req, res, next) => {
           }
         }
       ]),
-
       ProductModel.find({ quantity: 0 }, "title"),
-
-      OrderModel.aggregate([
-        { $match: { createdAt: { $gte: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000) } } },
-        {
-          $group: {
-            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-            count: { $sum: 1 }
-          }
-        }
-      ]),
-
-      OrderModel.aggregate([
-        { $group: { _id: null, total: { $sum: "$subTotal" } } }
-      ]).then(res => res[0]?.total || 0),
-
-      OrderModel.aggregate([
-        { $group: { _id: null, avg: { $avg: "$subTotal" } } }
-      ]).then(res => parseFloat((res[0]?.avg || 0).toFixed(2))),
-
       OrderModel.aggregate([
         { $group: { _id: "$status", count: { $sum: 1 } } }
       ]),
 
-      // Top Selling Products
+      // topSellingProducts
       OrderModel.aggregate([
-        { $unwind: "$products" },
+        { $unwind: "$items" },
         {
           $group: {
-            _id: "$products.productId",
-            totalSold: { $sum: "$products.quantity" }
+            _id: "$items.product",
+            totalSold: { $sum: "$items.quantity" }
           }
         },
         {
@@ -146,15 +122,15 @@ export const getExtendedStats = async (req, res, next) => {
             from: "products",
             localField: "_id",
             foreignField: "_id",
-            as: "product"
+            as: "productInfo"
           }
         },
-        { $unwind: "$product" },
+        { $unwind: "$productInfo" },
         {
           $project: {
             _id: 0,
-            productId: "$product._id",
-            title: "$product.title",
+            productId: "$_id",
+            title: "$productInfo.title",
             totalSold: 1
           }
         },
@@ -162,38 +138,43 @@ export const getExtendedStats = async (req, res, next) => {
         { $limit: 5 }
       ]),
 
-      // Category-wise Revenue
+      // categoryRevenue
       OrderModel.aggregate([
-        { $unwind: "$products" },
+        { $unwind: "$items" },
         {
           $lookup: {
             from: "products",
-            localField: "products.productId",
+            localField: "items.product",
             foreignField: "_id",
-            as: "product"
+            as: "productInfo"
           }
         },
-        { $unwind: "$product" },
+        { $unwind: "$productInfo" },
         {
           $group: {
-            _id: "$product.category",
-            revenue: {
-              $sum: {
-                $multiply: ["$products.quantity", "$products.price"]
-              }
-            }
+            _id: "$productInfo.category",
+            revenue: { $sum: "$items.totalForThisItem" }
           }
         },
         {
+          $lookup: {
+            from: "categories",
+            localField: "_id",
+            foreignField: "_id",
+            as: "categoryInfo"
+          }
+        },
+        { $unwind: "$categoryInfo" },
+        {
           $project: {
-            category: "$_id",
-            revenue: 1,
-            _id: 0
+            _id: 0,
+            category: "$categoryInfo.name",
+            revenue: 1
           }
         }
       ]),
 
-      // Top Locations (based on city)
+      // topLocations by gov
       OrderModel.aggregate([
         {
           $group: {
@@ -202,18 +183,13 @@ export const getExtendedStats = async (req, res, next) => {
           }
         },
         {
-          $sort: { count: -1 }
-        },
-        {
-          $limit: 5
-        },
-        {
           $project: {
+            _id: 0,
             city: "$_id",
-            count: 1,
-            _id: 0
+            count: 1
           }
-        }
+        },
+        { $sort: { count: -1 } }
       ])
     ]);
 
@@ -222,20 +198,17 @@ export const getExtendedStats = async (req, res, next) => {
       return { date, total: found?.total || 0 };
     });
 
-    const ordersPerDay = last7Days.map(date => {
-      const found = rawOrdersPerDay.find(d => d._id === date);
-      return { date, count: found?.count || 0 };
-    });
-
     res.status(200).json({
       totalUsers,
       totalProducts,
       totalOrders,
-      totalRevenue,
-      averageOrderValue: avgOrderValue,
+      totalRevenue: dailyRevenue.reduce((acc, curr) => acc + curr.total, 0),
+      averageOrderValue:
+        totalOrders > 0
+          ? parseFloat((dailyRevenue.reduce((acc, curr) => acc + curr.total, 0) / totalOrders).toFixed(2))
+          : 0,
       ordersThisMonth,
       dailyRevenueLast7Days: dailyRevenue,
-      ordersPerDayLast7Days: ordersPerDay,
       zeroStockProducts,
       ordersByStatus,
       topSellingProducts,
