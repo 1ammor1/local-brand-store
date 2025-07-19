@@ -29,16 +29,14 @@ export const updateProductSchema = Joi.object({
   originalPrice: Joi.number().positive(),
   price: Joi.number().positive(),
 
-  discount: Joi.alternatives().try(
-    Joi.object({
-      type: Joi.string().valid("percentage", "fixed").required(),
-      amount: Joi.number().positive().required()
-    }),
-    Joi.valid(null)
-  ).optional(), 
+  discount: Joi.object({
+    type: Joi.string().valid("percentage", "fixed").required(),
+    amount: Joi.number().positive().required()
+  }).optional(),
 
-  quantity: Joi.number().integer().min(0),
-  category: Joi.string().regex(/^[0-9a-fA-F]{24}$/),
-  colors: Joi.array().items(Joi.string()),
-  size: Joi.array().items(Joi.string()),
+  category: Joi.string().pattern(/^[0-9a-fA-F]{24}$/),
+
+  sizes: Joi.array().items(Joi.string()).min(1),
+  colors: Joi.array().items(Joi.string()).min(1),
+  quantity: Joi.number().integer().min(1),
 }).unknown(true);
