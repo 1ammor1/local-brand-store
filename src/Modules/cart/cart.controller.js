@@ -126,18 +126,22 @@ export const getCart = async (req, res, next) => {
       select: "title price originalPrice discount images imageUrl variants"
     });
 
-    if (!cart) {
+    if (!cart || !cart.items.length) {
       return res.status(200).json({ cart: [], message: "Cart is empty" });
     }
 
+    const formatted = formatCartWithSubTotal(cart);
+
     res.status(200).json({
-      cart: formatCartWithSubTotal(cart)
+      cart: formatted.items, // ← رجّع الـ items على طول
+      subTotal: formatted.subTotal
     });
 
   } catch (err) {
     next(err);
   }
 };
+
 
 // ✅ Remove from cart
 export const removeFromCart = async (req, res, next) => {
