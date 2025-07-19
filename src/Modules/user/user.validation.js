@@ -3,6 +3,8 @@ import Joi from "joi";
 export const updateProfileSchema = Joi.object({
   firstName: Joi.string().min(3).max(50).optional(),
   lastName: Joi.string().min(3).max(50).optional(),
+  email: Joi.string().email().optional(),
+
   oldPassword: Joi.string().min(6).optional(),
   newPassword: Joi.when("oldPassword", {
     is: Joi.exist(),
