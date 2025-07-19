@@ -85,6 +85,9 @@ export const getExtendedStats = async (req, res, next) => {
       ordersThisMonth,
       rawDailyRevenue,
       zeroStockProducts,
+      rawOrdersPerDay,
+      totalRevenue,
+      avgOrderValue,
       ordersByStatus,
       topSellingProducts,
       categoryRevenue,
@@ -105,10 +108,23 @@ export const getExtendedStats = async (req, res, next) => {
       ]),
       ProductModel.find({ quantity: 0 }, "title"),
       OrderModel.aggregate([
+        { $match: { createdAt: { $gte: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000) } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            count: { $sum: 1 }
+          }
+        }
+      ]),
+      OrderModel.aggregate([
+        { $group: { _id: null, total: { $sum: "$subTotal" } } }
+      ]).then(res => res[0]?.total || 0),
+      OrderModel.aggregate([
+        { $group: { _id: null, avg: { $avg: "$subTotal" } } }
+      ]).then(res => parseFloat((res[0]?.avg || 0).toFixed(2))),
+      OrderModel.aggregate([
         { $group: { _id: "$status", count: { $sum: 1 } } }
       ]),
-
-      // topSellingProducts
       OrderModel.aggregate([
         { $unwind: "$items" },
         {
@@ -122,23 +138,21 @@ export const getExtendedStats = async (req, res, next) => {
             from: "products",
             localField: "_id",
             foreignField: "_id",
-            as: "productInfo"
+            as: "product"
           }
         },
-        { $unwind: "$productInfo" },
+        { $unwind: "$product" },
         {
           $project: {
-            _id: 0,
             productId: "$_id",
-            title: "$productInfo.title",
-            totalSold: 1
+            totalSold: 1,
+            title: "$product.title",
+            _id: 0
           }
         },
         { $sort: { totalSold: -1 } },
         { $limit: 5 }
       ]),
-
-      // categoryRevenue
       OrderModel.aggregate([
         { $unwind: "$items" },
         {
@@ -151,45 +165,44 @@ export const getExtendedStats = async (req, res, next) => {
         },
         { $unwind: "$productInfo" },
         {
-          $group: {
-            _id: "$productInfo.category",
-            revenue: { $sum: "$items.totalForThisItem" }
-          }
-        },
-        {
           $lookup: {
             from: "categories",
-            localField: "_id",
+            localField: "productInfo.category",
             foreignField: "_id",
             as: "categoryInfo"
           }
         },
         { $unwind: "$categoryInfo" },
         {
+          $group: {
+            _id: "$categoryInfo.name",
+            revenue: { $sum: "$items.snapshot.totalForThisItem" }
+          }
+        },
+        {
           $project: {
-            _id: 0,
-            category: "$categoryInfo.name",
-            revenue: 1
+            category: "$_id",
+            revenue: 1,
+            _id: 0
           }
         }
       ]),
-
-      // topLocations by gov
       OrderModel.aggregate([
         {
           $group: {
-            _id: "$shippingAddress.gov",
+            _id: "$shippingAddress.city",
             count: { $sum: 1 }
           }
         },
         {
           $project: {
-            _id: 0,
             city: "$_id",
-            count: 1
+            count: 1,
+            _id: 0
           }
         },
-        { $sort: { count: -1 } }
+        { $sort: { count: -1 } },
+        { $limit: 5 }
       ])
     ]);
 
@@ -198,17 +211,20 @@ export const getExtendedStats = async (req, res, next) => {
       return { date, total: found?.total || 0 };
     });
 
+    const ordersPerDay = last7Days.map(date => {
+      const found = rawOrdersPerDay.find(d => d._id === date);
+      return { date, count: found?.count || 0 };
+    });
+
     res.status(200).json({
       totalUsers,
       totalProducts,
       totalOrders,
-      totalRevenue: dailyRevenue.reduce((acc, curr) => acc + curr.total, 0),
-      averageOrderValue:
-        totalOrders > 0
-          ? parseFloat((dailyRevenue.reduce((acc, curr) => acc + curr.total, 0) / totalOrders).toFixed(2))
-          : 0,
+      totalRevenue,
+      averageOrderValue: avgOrderValue,
       ordersThisMonth,
       dailyRevenueLast7Days: dailyRevenue,
+      ordersPerDayLast7Days: ordersPerDay,
       zeroStockProducts,
       ordersByStatus,
       topSellingProducts,
