@@ -107,88 +107,83 @@ export const getProductById = async (req, res, next) => {
   }
 };
 
+import { ProductModel } from "../../DB/models/product.model.js";
+import { bufferToStream } from "../../utils/streamUpload.js";
+import cloudinary from "../../utils/cloudinary.js";
+
 export const createProduct = async (req, res, next) => {
   try {
     const {
       title,
       description,
       originalPrice,
-      discount,
       category,
-      variants // 👈 جايه من form-data كـ string
+      discount, // ممكن تيجي undefined
+      variants // 👈 ده جاي string من form-data
     } = req.body;
 
-    // ✅ Parse variants
-    let parsedVariants = [];
-    if (!variants) {
-      return res.status(400).json({ message: "Variants are required" });
-    }
-
+    // ✅ Parse variants manually from string to array
+    let parsedVariants;
     try {
       parsedVariants = JSON.parse(variants);
-
       if (!Array.isArray(parsedVariants)) {
         return res.status(400).json({ message: "Variants must be an array" });
       }
-
-      const isValid = parsedVariants.every(v =>
-        v.size && v.color && typeof v.quantity === "number"
-      );
-
-      if (!isValid) {
-        return res.status(400).json({ message: "Each variant must include size, color, and quantity" });
-      }
     } catch (err) {
-      return res.status(400).json({ message: "Invalid variants JSON format" });
+      return res.status(400).json({ message: "Invalid variants format. Must be a JSON array." });
     }
 
-    // ✅ رفع الصور إلى Cloudinary
+    // ✅ Parse discount if provided
+    let parsedDiscount;
+    if (discount) {
+      try {
+        parsedDiscount = JSON.parse(discount);
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid discount format. Must be a JSON object." });
+      }
+    }
+
+    // ✅ Upload images
     let images = [];
     if (req.files?.length) {
-      const uploaded = await Promise.all(
-        req.files.map(file => {
+      const uploadedImages = await Promise.all(
+        req.files.map((file) => {
           return new Promise((resolve, reject) => {
-            const uploadStream = cloudinary.uploader.upload_stream(
+            const stream = cloudinary.uploader.upload_stream(
               { folder: `products/${req.user.id}` },
               (error, result) => {
                 if (error) return reject(error);
                 resolve({ url: result.secure_url, public_id: result.public_id });
               }
             );
-            bufferToStream(file.buffer).pipe(uploadStream);
+            bufferToStream(file.buffer).pipe(stream);
           });
         })
       );
-      images = uploaded;
+      images = uploadedImages;
     }
 
-    // ✅ حساب السعر بعد الخصم
+    // ✅ Calculate discounted price
     let price = originalPrice;
-    if (discount && typeof discount === "object") {
-      const { amount, type } = discount;
-
-      if (amount && type === "percentage") {
-        price = originalPrice - (originalPrice * amount) / 100;
-      } else if (amount && type === "fixed") {
-        price = originalPrice - amount;
+    if (parsedDiscount?.amount && parsedDiscount?.type) {
+      if (parsedDiscount.type === "percentage") {
+        price = originalPrice - (originalPrice * parsedDiscount.amount) / 100;
+      } else if (parsedDiscount.type === "fixed") {
+        price = originalPrice - parsedDiscount.amount;
       }
     }
 
-    // ✅ إعداد صورة رئيسية
-    const imageUrl = images[0]?.url || null;
-
-    // ✅ إنشاء المنتج
     const product = await ProductModel.create({
       title,
       description,
       originalPrice,
       price: Math.round(price * 100) / 100,
-      discount: discount?.amount ? discount : undefined,
+      discount: parsedDiscount,
       category,
       variants: parsedVariants,
       images,
-      imageUrl,
-      user: req.user.id,
+      imageUrl: images[0]?.url || null,
+      user: req.user.id
     });
 
     return res.status(201).json({ message: "Product created", product });
@@ -196,6 +191,7 @@ export const createProduct = async (req, res, next) => {
     next(err);
   }
 };
+
 
 export const updateProduct = async (req, res, next) => {
   try {
