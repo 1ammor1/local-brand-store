@@ -9,13 +9,34 @@ import { Governorates, shippingPrices } from "../../utils/governorates.js";
 export const createOrder = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { shippingAddress, notes = "", paymentMethod = "cash" } = req.body;
+    const {
+      fullName,
+      phone,
+      anotherPhone,
+      addressLine,
+      city,
+      gov,
+      country,
+      notes = "",
+      paymentMethod = "cash"
+    } = req.body;
 
-    if (!shippingAddress || !Governorates.includes(shippingAddress.gov)) {
+    // تحقق من صحة gov
+    if (!gov || !Governorates.includes(gov)) {
       return res.status(400).json({ message: "Valid shipping address is required" });
     }
 
-    const shipping = shippingPrices[shippingAddress.gov] || 0;
+    const shipping = shippingPrices[gov] || 0;
+
+    const shippingAddress = {
+      fullName,
+      phone,
+      anotherPhone,
+      addressLine,
+      city,
+      gov,
+      country
+    };
 
     const cart = await CartModel.findOne({ user: userId }).populate("items.product");
     if (!cart || !cart.items.length) {
@@ -60,9 +81,9 @@ export const createOrder = async (req, res, next) => {
 
       const totalDiscount = parseFloat((discountValuePerItem * quantity).toFixed(2));
       const totalForThisItem = parseFloat((priceAfterDiscount * quantity).toFixed(2));
-      const totalOriginalPrice = parseFloat((originalPrice * quantity).toFixed(2)); // 🟢 الجديد
+      const totalOriginalPrice = parseFloat((originalPrice * quantity).toFixed(2));
 
-      subTotal += totalOriginalPrice; // 🟢 التعديل هنا
+      subTotal += totalOriginalPrice;
       totalDiscountAllItems += totalDiscount;
 
       orderItems.push({
@@ -77,7 +98,7 @@ export const createOrder = async (req, res, next) => {
           discountValuePerItem,
           totalDiscount,
           totalForThisItem,
-          totalOriginalPrice // 🟢 لو حابب تظهره في snapshot
+          totalOriginalPrice
         },
       });
 
@@ -87,7 +108,7 @@ export const createOrder = async (req, res, next) => {
 
     subTotal = parseFloat(subTotal.toFixed(2));
     totalDiscountAllItems = parseFloat(totalDiscountAllItems.toFixed(2));
-    const Total = parseFloat((subTotal - totalDiscountAllItems + shipping).toFixed(2)); // 🟢 تعديل الحساب هنا
+    const Total = parseFloat((subTotal - totalDiscountAllItems + shipping).toFixed(2));
 
     const order = await OrderModel.create({
       user: userId,
@@ -118,6 +139,7 @@ export const createOrder = async (req, res, next) => {
     next(err);
   }
 };
+
 
 export const getSingleOrder = async (req, res, next) => {
   try {
