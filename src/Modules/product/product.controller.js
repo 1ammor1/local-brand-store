@@ -107,10 +107,6 @@ export const getProductById = async (req, res, next) => {
   }
 };
 
-import { ProductModel } from "../../DB/models/product.model.js";
-import { bufferToStream } from "../../utils/streamUpload.js";
-import cloudinary from "../../utils/cloudinary.js";
-
 export const createProduct = async (req, res, next) => {
   try {
     const {
