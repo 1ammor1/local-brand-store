@@ -13,11 +13,17 @@ export const createProductSchema = Joi.object({
 
   category: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required(),
 
-  sizes: Joi.array().items(Joi.string()).min(1).required(),
-  colors: Joi.array().items(Joi.string()).min(1).required(),
-  quantity: Joi.number().integer().min(1).required(),
-})
-.unknown(true);
+  // ✅ بدل sizes + colors + quantity، نستخدم:
+  variants: Joi.array().items(
+    Joi.object({
+      size: Joi.string().required(),
+      color: Joi.string().required(),
+      quantity: Joi.number().integer().min(0).required()
+    })
+  ).min(1).required(),
+
+}).unknown(true);
+
 
 
 
