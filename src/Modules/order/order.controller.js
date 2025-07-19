@@ -12,7 +12,7 @@ export const createOrder = async (req, res, next) => {
     const {
       fullName,
       phone,
-      anotherPhone,
+      anotherPhone="",
       addressLine,
       city,
       gov,
