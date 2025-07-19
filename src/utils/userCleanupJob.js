@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import UserModel from "../models/user.model.js";
+import { UserModel } from "../DB/models/user.model.js";
 
 cron.schedule("0 2 * * *", async () => {
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
