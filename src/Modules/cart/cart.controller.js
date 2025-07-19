@@ -175,6 +175,7 @@ export const removeFromCart = async (req, res, next) => {
   }
 };
 
+
 export const updateItemQuantity = async (req, res, next) => {
   try {
     const { productId, color, size } = req.params;
@@ -204,8 +205,14 @@ export const updateItemQuantity = async (req, res, next) => {
     }
 
     if (quantity === 0) {
-      cart.items.splice(itemIndex, 1); // 🧽 احذف العنصر لو الكمية = 0
+      cart.items.splice(itemIndex, 1);
+
+      if (cart.items.length === 0) {
+        await CartModel.findByIdAndDelete(cart._id);
+        return res.status(200).json({ message: "Cart is now empty and has been removed" });
+      }
     } else {
+      // ✅ Just update quantity
       cart.items[itemIndex].quantity = quantity;
     }
 
@@ -224,50 +231,6 @@ export const updateItemQuantity = async (req, res, next) => {
     next(err);
   }
 };
-/*export const updateItemQuantity = async (req, res, next) => {
-  try {
-    const { productId, color, size } = req.params;
-    const { quantity } = req.body;
-
-    if (!color || !size) {
-      return res.status(400).json({ message: "Color and size are required in params" });
-    }
-
-    const cart = await CartModel.findOne({ user: req.user.id });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
-
-    const item = cart.items.find(
-      item =>
-        item.product.toString() === productId &&
-        item.color === color &&
-        item.size === size
-    );
-
-    if (!item) return res.status(404).json({ message: "Item not found in cart" });
-
-    const product = await ProductModel.findById(productId);
-    if (!product) return res.status(404).json({ message: "Product not found" });
-
-    if (quantity > product.quantity) {
-      return res.status(400).json({ message: `Only ${product.quantity} available in stock` });
-    }
-
-    item.quantity = quantity;
-    await cart.save();
-
-    await cart.populate({
-      path: "items.product",
-      select: "title price originalPrice discount quantity images"
-    });
-
-    res.status(200).json({
-      message: "Quantity updated",
-      cart: cart.toObject({ virtuals: true })
-    });
-  } catch (err) {
-    next(err);
-  }
-};*/
 
 
 export const clearCart = async (req, res, next) => {
