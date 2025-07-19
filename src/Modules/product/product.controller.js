@@ -94,60 +94,36 @@ export const createProduct = async (req, res, next) => {
       title,
       description,
       originalPrice,
-      quantity,
+      discount,
       category,
-      colors,
-      size,
-      discount
+      variants
     } = req.body;
 
-    const Categoty = await CategoryModel.findById(category);
-    if (!Categoty) return res.status(404).json({ message: "Category not found" });
+    const images = req.files?.map(file => ({
+      url: file.path,
+      public_id: file.filename
+    }));
 
-    let images = [];
+    let price = originalPrice;
 
-
-      if (req.files?.length) {
-        const results = await Promise.all(
-          req.files.map(
-            (file) =>
-              new Promise((resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
-                  { folder: `products/${req.user.id}` },
-                  (error, result) => {
-                    if (error) return reject(error);
-                    resolve({ url: result.secure_url, public_id: result.public_id });
-                  }
-                );
-                bufferToStream(file.buffer).pipe(stream);
-              })
-          )
-        );
-        images = results;
-      }
-
-    let finalPrice = originalPrice;
-    if (discount?.type && discount?.amount) {
+    if (discount?.amount && discount?.type) {
       if (discount.type === "percentage") {
-        finalPrice = originalPrice - (originalPrice * (discount.amount / 100));
+        price = originalPrice - (originalPrice * discount.amount) / 100;
       } else if (discount.type === "fixed") {
-        finalPrice = originalPrice - discount.amount;
+        price = originalPrice - discount.amount;
       }
-      if (finalPrice < 0) finalPrice = 0;
     }
 
     const product = await ProductModel.create({
       title,
       description,
       originalPrice,
-      price: Math.round(finalPrice * 100) / 100,
-      discount: discount?.type && discount?.amount ? discount : undefined,
-      quantity,
+      price: Math.round(price * 100) / 100,
+      discount: discount?.amount ? discount : undefined,
       category,
-      colors,
-      size,
+      variants,
       images,
-      user: req.user.id,
+      user: req.user.id
     });
 
     res.status(201).json({ message: "Product created", product });
@@ -155,6 +131,7 @@ export const createProduct = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 export const getProductById = async (req, res, next) => {
