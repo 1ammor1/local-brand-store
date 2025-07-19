@@ -115,50 +115,67 @@ export const createProduct = async (req, res, next) => {
       originalPrice,
       discount,
       category,
-      variants  // 👈 انت هتبعت دي كـ JSON string
+      variants // 👈 جايه من form-data كـ string
     } = req.body;
 
-    // ✅ Parse variants (جايه كـ string من form-data)
+    // ✅ Parse variants
     let parsedVariants = [];
-    if (variants) {
-      try {
-        parsedVariants = JSON.parse(variants);
-      } catch (err) {
-        return res.status(400).json({ message: "Invalid variants format" });
-      }
-    } else {
+    if (!variants) {
       return res.status(400).json({ message: "Variants are required" });
+    }
+
+    try {
+      parsedVariants = JSON.parse(variants);
+
+      if (!Array.isArray(parsedVariants)) {
+        return res.status(400).json({ message: "Variants must be an array" });
+      }
+
+      const isValid = parsedVariants.every(v =>
+        v.size && v.color && typeof v.quantity === "number"
+      );
+
+      if (!isValid) {
+        return res.status(400).json({ message: "Each variant must include size, color, and quantity" });
+      }
+    } catch (err) {
+      return res.status(400).json({ message: "Invalid variants JSON format" });
     }
 
     // ✅ رفع الصور إلى Cloudinary
     let images = [];
     if (req.files?.length) {
-      const results = await Promise.all(
-        req.files.map((file) => {
+      const uploaded = await Promise.all(
+        req.files.map(file => {
           return new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
+            const uploadStream = cloudinary.uploader.upload_stream(
               { folder: `products/${req.user.id}` },
               (error, result) => {
                 if (error) return reject(error);
                 resolve({ url: result.secure_url, public_id: result.public_id });
               }
             );
-            bufferToStream(file.buffer).pipe(stream);
+            bufferToStream(file.buffer).pipe(uploadStream);
           });
         })
       );
-      images = results;
+      images = uploaded;
     }
 
     // ✅ حساب السعر بعد الخصم
     let price = originalPrice;
-    if (discount?.amount && discount?.type) {
-      if (discount.type === "percentage") {
-        price = originalPrice - (originalPrice * discount.amount) / 100;
-      } else if (discount.type === "fixed") {
-        price = originalPrice - discount.amount;
+    if (discount && typeof discount === "object") {
+      const { amount, type } = discount;
+
+      if (amount && type === "percentage") {
+        price = originalPrice - (originalPrice * amount) / 100;
+      } else if (amount && type === "fixed") {
+        price = originalPrice - amount;
       }
     }
+
+    // ✅ إعداد صورة رئيسية
+    const imageUrl = images[0]?.url || null;
 
     // ✅ إنشاء المنتج
     const product = await ProductModel.create({
@@ -168,17 +185,17 @@ export const createProduct = async (req, res, next) => {
       price: Math.round(price * 100) / 100,
       discount: discount?.amount ? discount : undefined,
       category,
-      variants: parsedVariants, // 👈 دي اللي هتتسجل
+      variants: parsedVariants,
       images,
+      imageUrl,
       user: req.user.id,
     });
 
-    res.status(201).json({ message: "Product created", product });
+    return res.status(201).json({ message: "Product created", product });
   } catch (err) {
     next(err);
   }
 };
-
 
 export const updateProduct = async (req, res, next) => {
   try {
