@@ -14,7 +14,7 @@ export const createProductSchema = Joi.object({
   category: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required(),
 
   // ✅ بدل sizes + colors + quantity، نستخدم:
-  variants: Joi.array().items(
+  variants: Joi.items(
     Joi.object({
       size: Joi.string().required(),
       color: Joi.string().required(),
