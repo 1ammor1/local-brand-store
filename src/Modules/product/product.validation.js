@@ -16,7 +16,8 @@ export const createProductSchema = Joi.object({
   sizes: Joi.array().items(Joi.string()).min(1).required(),
   colors: Joi.array().items(Joi.string()).min(1).required(),
   quantity: Joi.number().integer().min(1).required(),
-});
+})
+.unknown(true);
 
 
 
