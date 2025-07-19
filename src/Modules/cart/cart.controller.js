@@ -179,13 +179,23 @@ export const removeFromCart = async (req, res, next) => {
 
 export const updateItemQuantity = async (req, res, next) => {
   try {
-    const { productId } = req.params;
+    const { productId, color, size } = req.params;
     const { quantity } = req.body;
+
+    if (!color || !size) {
+      return res.status(400).json({ message: "Color and size are required in params" });
+    }
 
     const cart = await CartModel.findOne({ user: req.user.id });
     if (!cart) return res.status(404).json({ message: "Cart not found" });
 
-    const item = cart.items.find(item => item.product.toString() === productId);
+    const item = cart.items.find(
+      item =>
+        item.product.toString() === productId &&
+        item.color === color &&
+        item.size === size
+    );
+
     if (!item) return res.status(404).json({ message: "Item not found in cart" });
 
     const product = await ProductModel.findById(productId);
@@ -198,7 +208,15 @@ export const updateItemQuantity = async (req, res, next) => {
     item.quantity = quantity;
     await cart.save();
 
-    res.status(200).json({ message: "Quantity updated", cart });
+    await cart.populate({
+      path: "items.product",
+      select: "title price originalPrice discount quantity images"
+    });
+
+    res.status(200).json({
+      message: "Quantity updated",
+      cart: cart.toObject({ virtuals: true })
+    });
   } catch (err) {
     next(err);
   }
