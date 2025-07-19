@@ -182,66 +182,78 @@ export const updateProduct = async (req, res, next) => {
       title,
       description,
       originalPrice,
-      quantity,
+      discount,
       category,
+      sizes,
       colors,
-      size,
-      discount
+      quantity
     } = req.body;
 
+    // ✅ تعديل الصور لو فيه صور جديدة
     if (req.files?.length) {
       for (const img of product.images) {
         if (img.public_id) await cloudinary.uploader.destroy(img.public_id);
       }
 
       const results = await Promise.all(
-          req.files.map(
-            (file) =>
-              new Promise((resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
-                  { folder: `products/${req.user.id}` },
-                  (error, result) => {
-                    if (error) return reject(error);
-                    resolve({ url: result.secure_url, public_id: result.public_id });
-                  }
-                );
-                bufferToStream(file.buffer).pipe(stream);
-              })
-          )
-        );
-
-product.images = results;
+        req.files.map(
+          (file) =>
+            new Promise((resolve, reject) => {
+              const stream = cloudinary.uploader.upload_stream(
+                { folder: `products/${req.user.id}` },
+                (error, result) => {
+                  if (error) return reject(error);
+                  resolve({ url: result.secure_url, public_id: result.public_id });
+                }
+              );
+              bufferToStream(file.buffer).pipe(stream);
+            })
+        )
+      );
 
       product.images = results;
     }
 
+    // ✅ تعديل البيانات الأساسية
     if (title) product.title = title;
     if (description) product.description = description;
     if (originalPrice) product.originalPrice = originalPrice;
-    if (quantity) product.quantity = quantity;
     if (category) product.category = category;
-    if (colors) product.colors = colors;
-    if (size) product.size = size;
 
+    // ✅ تعديل الخصم والسعر
     if (discount?.type && discount?.amount) {
       product.discount = discount;
 
       let finalPrice = product.originalPrice;
       if (discount.type === "percentage") {
-        finalPrice = finalPrice - (finalPrice * (discount.amount / 100));
+        finalPrice -= (finalPrice * discount.amount) / 100;
       } else if (discount.type === "fixed") {
-        finalPrice = finalPrice - discount.amount;
+        finalPrice -= discount.amount;
       }
-      if (finalPrice < 0) finalPrice = 0;
 
-      product.price = Math.round(finalPrice * 100) / 100;
+      product.price = Math.max(Math.round(finalPrice * 100) / 100, 0);
     } else {
       product.discount = undefined;
       product.price = product.originalPrice;
     }
 
+    // ✅ بناء الـ variants من جديد
+    if (sizes && colors && quantity) {
+      const parsedSizes = Array.isArray(sizes) ? sizes : [sizes];
+      const parsedColors = Array.isArray(colors) ? colors : [colors];
+
+      const variants = [];
+      for (const size of parsedSizes) {
+        for (const color of parsedColors) {
+          variants.push({ size, color, quantity });
+        }
+      }
+
+      product.variants = variants;
+    }
+
     await product.save();
-    return res.status(200).json({ message: "Product updated", product });
+    res.status(200).json({ message: "Product updated", product });
   } catch (err) {
     next(err);
   }
