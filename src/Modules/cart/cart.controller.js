@@ -164,8 +164,8 @@ export const getCart = async (req, res, next) => {
       });
 
     return res.status(200).json({
-      cartDetails: {
-        items: formattedItems,
+      cart: {
+        products: formattedItems,
         subTotal: parseFloat(subTotal.toFixed(2))
       }
     });
