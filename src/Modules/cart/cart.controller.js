@@ -109,11 +109,11 @@ export const getCart = async (req, res, next) => {
       return res.status(200).json({ cart: [], message: "Cart is empty" });
     }
 
-    let totalCartPrice = 0;
+    let subTotal = 0;
     const itemsWithTotals = cart.items.map(item => {
       const product = item.product;
       const itemTotal = product.price * item.quantity;
-      totalCartPrice += itemTotal;
+      subTotal += itemTotal;
 
       return {
         ...item.toObject(), 
@@ -126,7 +126,7 @@ export const getCart = async (req, res, next) => {
         _id: cart._id,
         user: cart.user,
         items: itemsWithTotals,
-        totalCartPrice: totalCartPrice,
+        subTotal: subTotal,
         createdAt: cart.createdAt,
         updatedAt: cart.updatedAt
       }
