@@ -51,16 +51,47 @@ export const updateProductSchema = Joi.object({
   description: Joi.string().max(1000),
 
   originalPrice: Joi.number().positive(),
-  price: Joi.number().positive(),
+  price: Joi.number().positive(), // عادة بيتحسب تلقائي بس حاطينه اختياري
 
-  discount: Joi.object({
-    type: Joi.string().valid("percentage", "fixed").required(),
-    amount: Joi.number().positive().required()
+  discount: Joi.string().custom((value, helpers) => {
+    try {
+      const parsed = JSON.parse(value);
+      if (
+        typeof parsed !== 'object' ||
+        !parsed.type ||
+        !parsed.amount ||
+        !["percentage", "fixed"].includes(parsed.type) ||
+        typeof parsed.amount !== "number" ||
+        parsed.amount <= 0
+      ) {
+        return helpers.message('"discount" must be a valid object with type and amount');
+      }
+      return value;
+    } catch {
+      return helpers.message('"discount" must be a valid JSON object');
+    }
   }).optional(),
 
   category: Joi.string().pattern(/^[0-9a-fA-F]{24}$/),
 
-  sizes: Joi.array().items(Joi.string()).min(1),
-  colors: Joi.array().items(Joi.string()).min(1),
-  quantity: Joi.number().integer().min(1),
+  variants: Joi.string().custom((value, helpers) => {
+    try {
+      const parsed = JSON.parse(value);
+      if (!Array.isArray(parsed)) {
+        return helpers.message('"variants" must be an array');
+      }
+      for (const v of parsed) {
+        if (
+          typeof v.size !== "string" ||
+          typeof v.color !== "string" ||
+          typeof v.quantity !== "number"
+        ) {
+          return helpers.message('"variants" array is invalid');
+        }
+      }
+      return value;
+    } catch {
+      return helpers.message('"variants" must be a valid JSON array');
+    }
+  }).optional(),
 }).unknown(true);
