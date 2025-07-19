@@ -21,7 +21,6 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({ message: "Email is already in use" });
     }
     user.email = email;
-    user.confirmEmail = false;
   }
 
   if (oldPassword && newPassword) {
