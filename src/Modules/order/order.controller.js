@@ -12,7 +12,7 @@ export const createOrder = async (req, res, next) => {
     const {
       fullName,
       phone,
-      anotherPhone="",
+      anotherPhone = "",
       addressLine,
       city,
       gov,
@@ -100,7 +100,6 @@ export const createOrder = async (req, res, next) => {
         },
       });
 
-      // تحديث كمية الـ variant
       variant.quantity -= quantity;
       await product.save();
     }
@@ -123,12 +122,24 @@ export const createOrder = async (req, res, next) => {
     });
 
     const admins = await UserModel.find({ role: "admin" });
-    const notifications = admins.map((admin) => ({
-      recipient: admin._id,
-      title: "🚚 New order",
-      message: `A new order has been created ${order.orderNumber}`,
-      order: order._id,
-    }));
+
+    const notifications = [
+      // Notifications for all admins
+      ...admins.map((admin) => ({
+        recipient: admin._id,
+        title: "🚚 New order",
+        message: `A new order has been created ${order.orderNumber}`,
+        order: order._id,
+      })),
+
+      // Notification for the user who made the order
+      {
+        recipient: userId,
+        title: "🧾 Order received",
+        message: `Your order ${order.orderNumber} has been placed and is pending.`,
+        order: order._id,
+      }
+    ];
 
     await NotificationModel.insertMany(notifications);
     await CartModel.deleteOne({ user: userId });
@@ -138,6 +149,7 @@ export const createOrder = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 export const getSingleOrder = async (req, res, next) => {
