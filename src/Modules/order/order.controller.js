@@ -30,7 +30,7 @@ export const createOrder = async (req, res, next) => {
     const orderNumber = "#" + counter.value.toString().padStart(6, "0");
 
     const orderItems = [];
-    let totalPrice = 0;
+    let subTotal = 0;
     let totalDiscountAllItems = 0;
 
     for (const item of cart.items) {
@@ -58,7 +58,7 @@ export const createOrder = async (req, res, next) => {
       const totalDiscount = discountValuePerItem * quantity;
       const totalForThisItem = priceAfterDiscount * quantity;
 
-      totalPrice += totalForThisItem;
+      subTotal += totalForThisItem;
       totalDiscountAllItems += totalDiscount;
 
       orderItems.push({
@@ -80,16 +80,16 @@ export const createOrder = async (req, res, next) => {
       await product.save();
     }
 
-    const finalTotal = totalPrice + shipping;
+    const Total = subTotal + shipping;
 
     const order = await OrderModel.create({
       user: userId,
       orderNumber,
       items: orderItems,
-      totalPrice,
+      subTotal,
       discount: totalDiscountAllItems,
       shipping,
-      finalTotal,
+      Total,
       paymentMethod,
       shippingAddress,
       notes,
