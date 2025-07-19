@@ -85,7 +85,33 @@ export const getProductsByCategory = async (req, res, next) => {
   }
 };
 
+export const getProductById = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
 
+    const product = await ProductModel.findById(productId)
+      .populate("category", "name")
+      .select("-__v");
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // ✅ استخراج الألوان والمقاسات من الـ variants
+    const uniqueSizes = [...new Set(product.variants.map(v => v.size))];
+    const uniqueColors = [...new Set(product.variants.map(v => v.color))];
+
+    const responseData = {
+      ...product.toObject(),
+      size: uniqueSizes,     // ✅ لازم اسمها كده عشان الـ front يشتغل
+      colors: uniqueColors   // ✅ نفس الاسم اللي بيستخدمه الـ Angular
+    };
+
+    res.status(200).json(responseData);
+  } catch (err) {
+    next(err);
+  }
+};
 
 
 export const createProduct = async (req, res, next) => {
