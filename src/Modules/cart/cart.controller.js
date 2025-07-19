@@ -175,7 +175,6 @@ export const removeFromCart = async (req, res, next) => {
   }
 };
 
-
 export const updateItemQuantity = async (req, res, next) => {
   try {
     const { productId, color, size } = req.params;
@@ -205,8 +204,7 @@ export const updateItemQuantity = async (req, res, next) => {
     }
 
     if (quantity === 0) {
-      // 🧽 امسح العنصر من الكارت
-      cart.items.splice(itemIndex, 1);
+      cart.items.splice(itemIndex, 1); // 🧽 احذف العنصر لو الكمية = 0
     } else {
       cart.items[itemIndex].quantity = quantity;
     }
@@ -226,7 +224,6 @@ export const updateItemQuantity = async (req, res, next) => {
     next(err);
   }
 };
-
 /*export const updateItemQuantity = async (req, res, next) => {
   try {
     const { productId, color, size } = req.params;
