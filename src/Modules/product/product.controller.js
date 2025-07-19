@@ -98,35 +98,51 @@ export const createProduct = async (req, res, next) => {
       category,
       sizes,
       colors,
-      quantity,
+      quantity
     } = req.body;
 
-    // صور المنتج
-    const images = req.files?.map(file => ({
-      url: file.path,
-      public_id: file.filename
-    }));
-
-    // حساب السعر بعد الخصم
-    let price = originalPrice;
-    if (discount?.amount && discount?.type) {
-      price = discount.type === "percentage"
-        ? originalPrice - (originalPrice * discount.amount) / 100
-        : originalPrice - discount.amount;
+    // ✅ رفع الصور إلى Cloudinary
+    let images = [];
+    if (req.files?.length) {
+      const results = await Promise.all(
+        req.files.map((file) => {
+          return new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { folder: `products/${req.user.id}` },
+              (error, result) => {
+                if (error) return reject(error);
+                resolve({ url: result.secure_url, public_id: result.public_id });
+              }
+            );
+            bufferToStream(file.buffer).pipe(stream);
+          });
+        })
+      );
+      images = results;
     }
 
-    // تكوين الـ variants (flat to nested)
-    const variants = [];
-    for (const size of sizes) {
-      for (const color of colors) {
-        variants.push({
-          size,
-          color,
-          quantity
-        });
+    // ✅ حساب السعر بعد الخصم
+    let price = originalPrice;
+    if (discount?.amount && discount?.type) {
+      if (discount.type === "percentage") {
+        price = originalPrice - (originalPrice * discount.amount) / 100;
+      } else if (discount.type === "fixed") {
+        price = originalPrice - discount.amount;
       }
     }
 
+    // ✅ بناء الـ variants (combinations)
+    const parsedSizes = Array.isArray(sizes) ? sizes : [sizes];
+    const parsedColors = Array.isArray(colors) ? colors : [colors];
+
+    const variants = [];
+    for (const size of parsedSizes) {
+      for (const color of parsedColors) {
+        variants.push({ size, color, quantity });
+      }
+    }
+
+    // ✅ إنشاء المنتج
     const product = await ProductModel.create({
       title,
       description,
@@ -136,7 +152,7 @@ export const createProduct = async (req, res, next) => {
       category,
       variants,
       images,
-      user: req.user.id
+      user: req.user.id,
     });
 
     res.status(201).json({ message: "Product created", product });
@@ -144,7 +160,6 @@ export const createProduct = async (req, res, next) => {
     next(err);
   }
 };
-
 
 
 export const getProductById = async (req, res, next) => {
