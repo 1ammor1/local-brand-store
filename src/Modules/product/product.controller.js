@@ -166,11 +166,22 @@ export const getProductById = async (req, res, next) => {
   try {
     const product = await ProductModel.findById(req.params.id).populate("category");
     if (!product) return res.status(404).json({ message: "Product not found" });
-    res.status(200).json({ product });
+
+    const colors = [...new Set(product.variants.map(v => v.color))];
+    const sizes = [...new Set(product.variants.map(v => v.size))];
+
+    const formattedProduct = {
+      ...product.toObject(),
+      colors,
+      size: sizes,
+    };
+
+    res.status(200).json({ product: formattedProduct });
   } catch (err) {
     next(err);
   }
 };
+
 
 export const updateProduct = async (req, res, next) => {
   try {
