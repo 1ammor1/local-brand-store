@@ -199,12 +199,33 @@ export const updateProduct = async (req, res, next) => {
       title,
       description,
       originalPrice,
-      discount,
       category,
-      sizes,
-      colors,
-      quantity
+      discount,
+      variants // 👈 جاي كـ JSON string زي في create
     } = req.body;
+
+    // ✅ Parse discount if provided
+    let parsedDiscount;
+    if (discount) {
+      try {
+        parsedDiscount = JSON.parse(discount);
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid discount format. Must be a JSON object." });
+      }
+    }
+
+    // ✅ Parse variants if provided
+    let parsedVariants;
+    if (variants) {
+      try {
+        parsedVariants = JSON.parse(variants);
+        if (!Array.isArray(parsedVariants)) {
+          return res.status(400).json({ message: "Variants must be an array" });
+        }
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid variants format. Must be a JSON array." });
+      }
+    }
 
     // ✅ تعديل الصور لو فيه صور جديدة
     if (req.files?.length) {
@@ -238,14 +259,14 @@ export const updateProduct = async (req, res, next) => {
     if (category) product.category = category;
 
     // ✅ تعديل الخصم والسعر
-    if (discount?.type && discount?.amount) {
-      product.discount = discount;
+    if (parsedDiscount?.type && parsedDiscount?.amount) {
+      product.discount = parsedDiscount;
 
       let finalPrice = product.originalPrice;
-      if (discount.type === "percentage") {
-        finalPrice -= (finalPrice * discount.amount) / 100;
-      } else if (discount.type === "fixed") {
-        finalPrice -= discount.amount;
+      if (parsedDiscount.type === "percentage") {
+        finalPrice -= (finalPrice * parsedDiscount.amount) / 100;
+      } else if (parsedDiscount.type === "fixed") {
+        finalPrice -= parsedDiscount.amount;
       }
 
       product.price = Math.max(Math.round(finalPrice * 100) / 100, 0);
@@ -254,19 +275,9 @@ export const updateProduct = async (req, res, next) => {
       product.price = product.originalPrice;
     }
 
-    // ✅ بناء الـ variants من جديد
-    if (sizes && colors && quantity) {
-      const parsedSizes = Array.isArray(sizes) ? sizes : [sizes];
-      const parsedColors = Array.isArray(colors) ? colors : [colors];
-
-      const variants = [];
-      for (const size of parsedSizes) {
-        for (const color of parsedColors) {
-          variants.push({ size, color, quantity });
-        }
-      }
-
-      product.variants = variants;
+    // ✅ لو فيه variants جديدة ابعتها
+    if (parsedVariants) {
+      product.variants = parsedVariants;
     }
 
     await product.save();
@@ -275,7 +286,6 @@ export const updateProduct = async (req, res, next) => {
     next(err);
   }
 };
-
 
 
 export const deleteProduct = async (req, res, next) => {
