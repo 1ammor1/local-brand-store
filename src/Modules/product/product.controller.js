@@ -122,10 +122,20 @@ export const createProduct = async (req, res, next) => {
       originalPrice,
       discount,
       category,
-      sizes,
-      colors,
-      quantity,
+      variants  // 👈 انت هتبعت دي كـ JSON string
     } = req.body;
+
+    // ✅ Parse variants (جايه كـ string من form-data)
+    let parsedVariants = [];
+    if (variants) {
+      try {
+        parsedVariants = JSON.parse(variants);
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid variants format" });
+      }
+    } else {
+      return res.status(400).json({ message: "Variants are required" });
+    }
 
     // ✅ رفع الصور إلى Cloudinary
     let images = [];
@@ -137,10 +147,7 @@ export const createProduct = async (req, res, next) => {
               { folder: `products/${req.user.id}` },
               (error, result) => {
                 if (error) return reject(error);
-                resolve({
-                  url: result.secure_url,
-                  public_id: result.public_id,
-                });
+                resolve({ url: result.secure_url, public_id: result.public_id });
               }
             );
             bufferToStream(file.buffer).pipe(stream);
@@ -160,41 +167,6 @@ export const createProduct = async (req, res, next) => {
       }
     }
 
-    // ✅ بناء الـ variants بناءً على الطريقة المرسلة
-    let variants = [];
-
-    if (req.body["variants"]) {
-      // جاي بصيغة variants كاملة من الفورم داتا
-      try {
-        const parsedVariants = JSON.parse(req.body["variants"]);
-        if (!Array.isArray(parsedVariants)) {
-          return res.status(400).json({ message: "Variants must be an array" });
-        }
-
-        variants = parsedVariants.map((v) => ({
-          size: v.size,
-          color: v.color,
-          quantity: v.quantity,
-        }));
-      } catch (err) {
-        return res.status(400).json({ message: "Invalid variants format (must be JSON array)" });
-      }
-    } else {
-      // جاي بصيغة sizes/colors/quantity الموحدين
-      const parsedSizes = Array.isArray(sizes) ? sizes : [sizes];
-      const parsedColors = Array.isArray(colors) ? colors : [colors];
-
-      if (!quantity) {
-        return res.status(400).json({ message: "Quantity is required when using sizes/colors" });
-      }
-
-      for (const size of parsedSizes) {
-        for (const color of parsedColors) {
-          variants.push({ size, color, quantity });
-        }
-      }
-    }
-
     // ✅ إنشاء المنتج
     const product = await ProductModel.create({
       title,
@@ -203,7 +175,7 @@ export const createProduct = async (req, res, next) => {
       price: Math.round(price * 100) / 100,
       discount: discount?.amount ? discount : undefined,
       category,
-      variants,
+      variants: parsedVariants, // 👈 دي اللي هتتسجل
       images,
       user: req.user.id,
     });
@@ -213,6 +185,7 @@ export const createProduct = async (req, res, next) => {
     next(err);
   }
 };
+
 
 export const updateProduct = async (req, res, next) => {
   try {
