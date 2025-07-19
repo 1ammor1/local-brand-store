@@ -1,7 +1,7 @@
 import { CartModel } from "../../DB/models/cart.model.js";
 import { ProductModel } from "../../DB/models/product.model.js";
 
-// 🟢 Helper function to calculate subTotal
+// ✅ Helper function to calculate subTotal
 function formatCartWithSubTotal(cartDoc) {
   if (!cartDoc || !cartDoc.items) return cartDoc;
 
@@ -31,7 +31,7 @@ function formatCartWithSubTotal(cartDoc) {
   };
 }
 
-// 🟡 addToCart
+// ✅ Add to cart
 export const addToCart = async (req, res, next) => {
   try {
     const { productId, quantity = 1, color, size } = req.body;
@@ -40,17 +40,14 @@ export const addToCart = async (req, res, next) => {
     const product = await ProductModel.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
-    if (!product.colors.includes(color)) {
-      return res.status(400).json({ message: `Color "${color}" is not available for this product` });
+    const variant = product.variants.find(v => v.color === color && v.size === size);
+    if (!variant) {
+      return res.status(400).json({ message: "Selected color/size is not available" });
     }
 
-    if (!product.size.includes(size)) {
-      return res.status(400).json({ message: `Size "${size}" is not available for this product` });
-    }
-
-    if (quantity > product.quantity) {
+    if (quantity > variant.quantity) {
       return res.status(400).json({
-        message: `Only ${product.quantity} piece(s) available in stock`
+        message: `Only ${variant.quantity} pieces available for ${color} / ${size}`
       });
     }
 
@@ -58,12 +55,12 @@ export const addToCart = async (req, res, next) => {
 
     if (!cart) {
       if (quantity > 8) {
-        return res.status(400).json({ message: "You can't add more than 8 pieces of this product to the cart" });
+        return res.status(400).json({ message: "You can't add more than 8 pieces" });
       }
 
       cart = await CartModel.create({
         user: userId,
-        items: [{ product: productId, quantity, color, size }],
+        items: [{ product: productId, quantity, color, size }]
       });
     } else {
       const existingItem = cart.items.find(
@@ -81,12 +78,9 @@ export const addToCart = async (req, res, next) => {
         });
       }
 
-      if (totalQty > product.quantity) {
-        const remainingStock = product.quantity - (existingItem?.quantity || 0);
+      if (totalQty > variant.quantity) {
         return res.status(400).json({
-          message: remainingStock > 0
-            ? `Only ${remainingStock} more piece(s) available for this product`
-            : `This product is out of stock or you already added the maximum available quantity`
+          message: `Only ${variant.quantity - (existingItem?.quantity || 0)} more available`
         });
       }
 
@@ -101,7 +95,7 @@ export const addToCart = async (req, res, next) => {
 
     await cart.populate({
       path: "items.product",
-      select: "title price originalPrice discount quantity images"
+      select: "title price originalPrice discount variants images"
     });
 
     return res.status(200).json({
@@ -113,13 +107,12 @@ export const addToCart = async (req, res, next) => {
   }
 };
 
-
-// 🟡 getCart
+// ✅ Get cart
 export const getCart = async (req, res, next) => {
   try {
     const cart = await CartModel.findOne({ user: req.user.id }).populate({
       path: "items.product",
-      select: "title price originalPrice discount images imageUrl quantity"
+      select: "title price originalPrice discount images imageUrl variants"
     });
 
     if (!cart) {
@@ -135,7 +128,7 @@ export const getCart = async (req, res, next) => {
   }
 };
 
-// 🟡 removeFromCart
+// ✅ Remove from cart
 export const removeFromCart = async (req, res, next) => {
   try {
     const { productId, color, size } = req.params;
@@ -150,6 +143,17 @@ export const removeFromCart = async (req, res, next) => {
     const cart = await CartModel.findOne({ user: req.user.id });
     if (!cart) return res.status(404).json({ message: "Cart not found" });
 
+    const itemExists = cart.items.some(
+      item =>
+        item.product.toString() === productId &&
+        item.color === color &&
+        item.size === size
+    );
+
+    if (!itemExists) {
+      return res.status(404).json({ message: "Item not found in cart" });
+    }
+
     cart.items = cart.items.filter(
       item =>
         item.product.toString() !== productId ||
@@ -161,7 +165,7 @@ export const removeFromCart = async (req, res, next) => {
 
     await cart.populate({
       path: "items.product",
-      select: "title price originalPrice discount quantity images"
+      select: "title price originalPrice discount variants images"
     });
 
     res.status(200).json({
@@ -173,7 +177,7 @@ export const removeFromCart = async (req, res, next) => {
   }
 };
 
-// 🟡 updateItemQuantity
+// ✅ Update item quantity
 export const updateItemQuantity = async (req, res, next) => {
   try {
     const { productId, color, size } = req.params;
@@ -193,13 +197,22 @@ export const updateItemQuantity = async (req, res, next) => {
         item.size === size
     );
 
-    if (itemIndex === -1) return res.status(404).json({ message: "Item not found in cart" });
+    if (itemIndex === -1) {
+      return res.status(404).json({ message: "Item not found in cart" });
+    }
 
     const product = await ProductModel.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
-    if (quantity > product.quantity) {
-      return res.status(400).json({ message: `Only ${product.quantity} available in stock` });
+    const variant = product.variants.find(v => v.color === color && v.size === size);
+    if (!variant) {
+      return res.status(400).json({ message: "Selected color/size not available" });
+    }
+
+    if (quantity > variant.quantity) {
+      return res.status(400).json({
+        message: `Only ${variant.quantity} available for ${color}/${size}`
+      });
     }
 
     if (quantity === 0) {
@@ -217,7 +230,7 @@ export const updateItemQuantity = async (req, res, next) => {
 
     await cart.populate({
       path: "items.product",
-      select: "title price originalPrice discount quantity images"
+      select: "title price originalPrice discount variants images"
     });
 
     res.status(200).json({
@@ -229,7 +242,7 @@ export const updateItemQuantity = async (req, res, next) => {
   }
 };
 
-// 🟡 clearCart (مافيش subTotal هنا)
+// ✅ Clear cart
 export const clearCart = async (req, res, next) => {
   try {
     const deletedCart = await CartModel.findOneAndDelete({ user: req.user.id });
