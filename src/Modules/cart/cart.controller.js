@@ -137,28 +137,31 @@ export const getCart = async (req, res, next) => {
 
     let subTotal = 0;
 
-    const formattedItems = cart.items.map(item => {
-      const product = item.product;
-      const quantity = item.quantity || 0;
-      const price = product?.price || 0;
+    // ✨ فلترة العناصر اللي المنتج فيها null
+    const formattedItems = cart.items
+      .filter(item => item.product !== null)
+      .map(item => {
+        const product = item.product;
+        const quantity = item.quantity || 0;
+        const price = product.price || 0;
 
-      subTotal += price * quantity;
+        subTotal += price * quantity;
 
-      return {
-        product: {
-          _id: product._id,
-          id: product._id, // ✅ مهم عشان الفرونت بيستخدم `id`
-          title: product.title,
-          originalPrice: product.originalPrice,
-          price: product.price,
-          imageUrl: product.images?.[0]?.url || "", // ✅ عشان الفرونت بيستخدمها
-          images: product.images
-        },
-        quantity: item.quantity,
-        color: item.color,
-        size: item.size
-      };
-    });
+        return {
+          product: {
+            _id: product._id,
+            id: product._id,
+            title: product.title,
+            originalPrice: product.originalPrice,
+            price: product.price,
+            imageUrl: product.images?.[0]?.url || "",
+            images: product.images
+          },
+          quantity: item.quantity,
+          color: item.color,
+          size: item.size
+        };
+      });
 
     return res.status(200).json({
       cartDetails: {
