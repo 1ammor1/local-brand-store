@@ -96,21 +96,34 @@ export const createProduct = async (req, res, next) => {
       originalPrice,
       discount,
       category,
-      variants
+      sizes,
+      colors,
+      quantity,
     } = req.body;
 
+    // صور المنتج
     const images = req.files?.map(file => ({
       url: file.path,
       public_id: file.filename
     }));
 
+    // حساب السعر بعد الخصم
     let price = originalPrice;
-
     if (discount?.amount && discount?.type) {
-      if (discount.type === "percentage") {
-        price = originalPrice - (originalPrice * discount.amount) / 100;
-      } else if (discount.type === "fixed") {
-        price = originalPrice - discount.amount;
+      price = discount.type === "percentage"
+        ? originalPrice - (originalPrice * discount.amount) / 100
+        : originalPrice - discount.amount;
+    }
+
+    // تكوين الـ variants (flat to nested)
+    const variants = [];
+    for (const size of sizes) {
+      for (const color of colors) {
+        variants.push({
+          size,
+          color,
+          quantity
+        });
       }
     }
 
