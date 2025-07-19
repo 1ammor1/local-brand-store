@@ -89,7 +89,14 @@ export const getProductById = async (req, res, next) => {
   try {
     const { productId } = req.params;
 
-    const product = await ProductModel.findById(productId);
+    // ✅ تأكد إن الـ ID صالح
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ message: "Invalid product ID" });
+    }
+
+    const product = await ProductModel.findById(productId)
+      .populate("category", "name")
+      .select("-__v");
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
@@ -101,8 +108,8 @@ export const getProductById = async (req, res, next) => {
 
     const responseData = {
       ...product.toObject(),
-      size: uniqueSizes,     // ✅ لازم اسمها كده عشان الـ front يشتغل
-      colors: uniqueColors   // ✅ نفس الاسم اللي بيستخدمه الـ Angular
+      size: uniqueSizes,     // ✅ اسم متوافق مع الفرونت
+      colors: uniqueColors
     };
 
     res.status(200).json(responseData);
