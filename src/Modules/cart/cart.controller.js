@@ -1,7 +1,7 @@
 import { CartModel } from "../../DB/models/cart.model.js";
 import { ProductModel } from "../../DB/models/product.model.js";
 
-// 🟢 دالة مساعدة لحساب subTotal
+// 🟢 Helper function to calculate subTotal
 function formatCartWithSubTotal(cartDoc) {
   if (!cartDoc || !cartDoc.items) return cartDoc;
 
@@ -49,7 +49,9 @@ export const addToCart = async (req, res, next) => {
     }
 
     if (quantity > product.quantity) {
-      return res.status(400).json({ message: "Insufficient quantity in stock" });
+      return res.status(400).json({
+        message: `Only ${product.quantity} piece(s) available in stock`
+      });
     }
 
     let cart = await CartModel.findOne({ user: userId });
@@ -74,12 +76,17 @@ export const addToCart = async (req, res, next) => {
       const totalQty = (existingItem?.quantity || 0) + quantity;
 
       if (totalQty > 8) {
-        return res.status(400).json({ message: "You can't add more than 8 pieces of this product to the cart" });
+        return res.status(400).json({
+          message: "You can't add more than 8 pieces of this product to the cart"
+        });
       }
 
       if (totalQty > product.quantity) {
+        const remainingStock = product.quantity - (existingItem?.quantity || 0);
         return res.status(400).json({
-          message: `Only ${product.quantity - (existingItem?.quantity || 0)} more available in stock`,
+          message: remainingStock > 0
+            ? `Only ${remainingStock} more piece(s) available for this product`
+            : `This product is out of stock or you already added the maximum available quantity`
         });
       }
 
@@ -105,6 +112,7 @@ export const addToCart = async (req, res, next) => {
     next(err);
   }
 };
+
 
 // 🟡 getCart
 export const getCart = async (req, res, next) => {
