@@ -30,10 +30,10 @@ const orderSchema = new mongoose.Schema(
       required: true
     },
     items: [orderItemSchema],
-    totalPrice: { type: Number, required: true },
+    subTotal: { type: Number, required: true },
     discount: { type: Number},    
     shipping: { type: Number },
-    finalTotal: { type: Number },
+    Total: { type: Number },
     status: {
       type: String,
       enum: [ "pending","processing","shipped","delivered","cancelled"],
