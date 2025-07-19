@@ -9,6 +9,16 @@ function formatCartWithSubTotal(cartDoc) {
 
   const itemsWithTotals = cartDoc.items.map(item => {
     const product = item.product;
+
+    // 🛑 المنتج مش موجود (محذوف أو مش متاح)
+    if (!product) {
+      return {
+        ...item.toObject(),
+        itemTotalPrice: 0,
+        warning: "Product no longer exists"
+      };
+    }
+
     const price = product.price || 0;
     const quantity = item.quantity || 0;
 
@@ -30,6 +40,7 @@ function formatCartWithSubTotal(cartDoc) {
     updatedAt: cartDoc.updatedAt
   };
 }
+
 
 // ✅ Add to cart
 export const addToCart = async (req, res, next) => {
