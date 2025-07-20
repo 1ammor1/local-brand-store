@@ -12,12 +12,12 @@ export const createOrder = async (req, res, next) => {
     const {
       fullName,
       phone,
-      anotherPhone = "",
+      anotherPhone,
       addressLine,
       city,
       gov,
       country,
-      notes = "",
+      notes,
       paymentMethod = "cash"
     } = req.body;
 
@@ -27,7 +27,17 @@ export const createOrder = async (req, res, next) => {
     }
 
     const shipping = shippingPrices[gov] || 0;
-    const shippingAddress = { fullName, phone, anotherPhone, addressLine, city, gov, country };
+
+    // Construct shippingAddress dynamically
+    const shippingAddress = {
+      fullName,
+      phone,
+      addressLine,
+      city,
+      gov,
+      country,
+      ...(anotherPhone ? { anotherPhone } : {})
+    };
 
     // Get cart
     const cart = await CartModel.findOne({ user: userId }).populate("items.product");
@@ -53,7 +63,6 @@ export const createOrder = async (req, res, next) => {
 
       if (!product) continue;
 
-      // Find variant
       const variantIndex = product.variants.findIndex(v => v.color === color && v.size === size);
       if (variantIndex === -1) {
         return res.status(400).json({ message: `Variant not found for product: ${product.title}` });
@@ -79,7 +88,6 @@ export const createOrder = async (req, res, next) => {
         priceAfterDiscount = originalPrice - discountValuePerItem;
       }
 
-      // Ensure numbers are rounded
       discountValuePerItem = parseFloat(discountValuePerItem.toFixed(2));
       priceAfterDiscount = parseFloat(priceAfterDiscount.toFixed(2));
       const totalDiscount = parseFloat((discountValuePerItem * quantity).toFixed(2));
@@ -89,7 +97,6 @@ export const createOrder = async (req, res, next) => {
       subTotal += totalOriginalPrice;
       totalDiscountAllItems += totalDiscount;
 
-      // Push order item
       orderItems.push({
         product: product._id,
         quantity,
@@ -110,17 +117,16 @@ export const createOrder = async (req, res, next) => {
         },
       });
 
-      // Deduct quantity from variant
       product.variants[variantIndex].quantity -= quantity;
-      await product.save(); // Save updated variant
+      await product.save();
     }
 
     subTotal = parseFloat(subTotal.toFixed(2));
     totalDiscountAllItems = parseFloat(totalDiscountAllItems.toFixed(2));
     const Total = parseFloat((subTotal - totalDiscountAllItems + shipping).toFixed(2));
 
-    // Create order
-    const order = await OrderModel.create({
+    // Construct orderData dynamically
+    const orderData = {
       user: userId,
       orderNumber,
       items: orderItems,
@@ -130,10 +136,11 @@ export const createOrder = async (req, res, next) => {
       Total,
       paymentMethod,
       shippingAddress,
-      notes,
-    });
+      ...(notes ? { notes } : {})
+    };
 
-    // Create notifications
+    const order = await OrderModel.create(orderData);
+
     const admins = await UserModel.find({ role: "admin" });
     const notifications = [
       ...admins.map((admin) => ({
@@ -151,8 +158,6 @@ export const createOrder = async (req, res, next) => {
     ];
 
     await NotificationModel.insertMany(notifications);
-
-    // Clear cart
     await CartModel.deleteOne({ user: userId });
 
     res.status(201).json({ message: "Order created", order });
