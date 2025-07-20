@@ -47,7 +47,7 @@ export const addToCart = async (req, res, next) => {
     const userId = req.user.id;
     const { productId, color, size } = req.body;
 
-    // ✅ Set default quantity = 1 if not provided
+    // ✅ Default quantity = 1 if not provided
     let quantity = req.body.quantity ?? 1;
 
     quantity = Number(quantity);
@@ -55,19 +55,26 @@ export const addToCart = async (req, res, next) => {
       return res.status(400).json({ message: "Quantity must be a valid number greater than 0" });
     }
 
+    // ✅ Check product exists
     const product = await ProductModel.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
+    // ✅ Find the correct variant
     const variant = product.variants.find(v => v.color === color && v.size === size);
-    if (!variant) return res.status(400).json({ message: "Variant not available" });
+    if (!variant) {
+      return res.status(400).json({ message: "Variant not available" });
+    }
 
+    // ✅ Check stock
     if (variant.quantity < quantity) {
       return res.status(400).json({ message: "Insufficient stock" });
     }
 
+    // ✅ Fetch or create cart
     let cart = await CartModel.findOne({ user: userId });
     if (!cart) cart = await CartModel.create({ user: userId, items: [] });
 
+    // ✅ Check if item already exists in cart
     const existingItem = cart.items.find(
       item =>
         item.product.toString() === productId &&
@@ -88,7 +95,10 @@ export const addToCart = async (req, res, next) => {
       select: "title price originalPrice discount variants images"
     });
 
-    res.status(200).json({ message: "Added to cart", cart: formatCartWithSubTotal(cart) });
+    res.status(200).json({
+      message: "Added to cart",
+      cart: formatCartWithSubTotal(cart)
+    });
   } catch (err) {
     next(err);
   }
