@@ -173,7 +173,7 @@ export const updateItemQuantity = async (req, res, next) => {
       return res.status(400).json({ message: "Color and size are required in params" });
     }
 
-    if (isNaN(parsedQty) || parsedQty < 0) {
+    if (isNaN(parsedQty)) {
       return res.status(400).json({ message: "Quantity must be a valid number" });
     }
 
@@ -205,7 +205,8 @@ export const updateItemQuantity = async (req, res, next) => {
       });
     }
 
-    if (parsedQty === 0) {
+    // ✅ Remove if quantity less than 1
+    if (parsedQty < 1) {
       cart.items.splice(itemIndex, 1);
 
       if (cart.items.length === 0) {
@@ -224,13 +225,14 @@ export const updateItemQuantity = async (req, res, next) => {
     });
 
     res.status(200).json({
-      message: parsedQty === 0 ? "Item removed from cart" : "Quantity updated",
+      message: parsedQty < 1 ? "Item removed from cart" : "Quantity updated",
       cart: formatCartWithSubTotal(cart)
     });
   } catch (err) {
     next(err);
   }
 };
+
 
 
 // ✅ Clear cart
