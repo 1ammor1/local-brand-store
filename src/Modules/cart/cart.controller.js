@@ -55,26 +55,21 @@ export const addToCart = async (req, res, next) => {
       return res.status(400).json({ message: "Quantity must be a valid number greater than 0" });
     }
 
-    // ✅ Check product exists
     const product = await ProductModel.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
-    // ✅ Find the correct variant
     const variant = product.variants.find(v => v.color === color && v.size === size);
     if (!variant) {
       return res.status(400).json({ message: "Variant not available" });
     }
 
-    // ✅ Check stock
     if (variant.quantity < quantity) {
       return res.status(400).json({ message: "Insufficient stock" });
     }
 
-    // ✅ Fetch or create cart
     let cart = await CartModel.findOne({ user: userId });
     if (!cart) cart = await CartModel.create({ user: userId, items: [] });
 
-    // ✅ Check if item already exists in cart
     const existingItem = cart.items.find(
       item =>
         item.product.toString() === productId &&
@@ -105,30 +100,13 @@ export const addToCart = async (req, res, next) => {
 };
 
 
-
 // ✅ Get cart
 export const getCart = async (req, res, next) => {
   try {
     const cart = await CartModel.findOne({ user: req.user.id }).populate("items.product");
     if (!cart) return res.status(200).json({ cart: [] });
 
-    const items = cart.items.map(item => {
-      const product = item.product;
-      const variant = product?.variants?.find(v => v.color === item.color && v.size === item.size);
-      return {
-        _id: item._id,
-        product: product?._id || null,
-        title: product?.title || "",
-        image: product?.images?.[0]?.url || "",
-        price: product?.price || 0,
-        color: item.color,
-        size: item.size,
-        quantity: item.quantity,
-        inStock: variant?.quantity || 0
-      };
-    });
-
-    res.status(200).json({ cart: items });
+    res.status(200).json({ cart: formatCartWithSubTotal(cart) });
   } catch (err) {
     next(err);
   }
