@@ -10,7 +10,6 @@ function formatCartWithSubTotal(cartDoc) {
   const itemsWithTotals = cartDoc.items.map(item => {
     const product = item.product;
 
-    // 🛑 المنتج مش موجود (محذوف أو مش متاح)
     if (!product) {
       return {
         ...item.toObject(),
@@ -48,12 +47,18 @@ export const addToCart = async (req, res, next) => {
     const userId = req.user.id;
     const { productId, color, size, quantity } = req.body;
 
+    const parsedQty = Number(quantity);
+    if (isNaN(parsedQty) || parsedQty <= 0) {
+      return res.status(400).json({ message: "Quantity must be a valid number greater than 0" });
+    }
+
     const product = await ProductModel.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
     const variant = product.variants.find(v => v.color === color && v.size === size);
     if (!variant) return res.status(400).json({ message: "Variant not available" });
-    if (variant.quantity < quantity) return res.status(400).json({ message: "Insufficient stock" });
+
+    if (variant.quantity < parsedQty) return res.status(400).json({ message: "Insufficient stock" });
 
     let cart = await CartModel.findOne({ user: userId });
     if (!cart) cart = await CartModel.create({ user: userId, items: [] });
@@ -66,13 +71,19 @@ export const addToCart = async (req, res, next) => {
     );
 
     if (existingItem) {
-      existingItem.quantity += quantity;
+      existingItem.quantity += parsedQty;
     } else {
-      cart.items.push({ product: productId, color, size, quantity });
+      cart.items.push({ product: productId, color, size, quantity: parsedQty });
     }
 
     await cart.save();
-    res.status(200).json({ message: "Added to cart", cart });
+
+    await cart.populate({
+      path: "items.product",
+      select: "title price originalPrice discount variants images"
+    });
+
+    res.status(200).json({ message: "Added to cart", cart: formatCartWithSubTotal(cart) });
   } catch (err) {
     next(err);
   }
@@ -157,14 +168,19 @@ export const removeFromCart = async (req, res, next) => {
   }
 };
 
+
 // ✅ Update item quantity
 export const updateItemQuantity = async (req, res, next) => {
   try {
     const { productId, color, size } = req.params;
-    const { quantity } = req.body;
+    const parsedQty = Number(req.body.quantity);
 
     if (!color || !size) {
       return res.status(400).json({ message: "Color and size are required in params" });
+    }
+
+    if (isNaN(parsedQty) || parsedQty < 0) {
+      return res.status(400).json({ message: "Quantity must be a valid number" });
     }
 
     const cart = await CartModel.findOne({ user: req.user.id });
@@ -189,13 +205,13 @@ export const updateItemQuantity = async (req, res, next) => {
       return res.status(400).json({ message: "Selected color/size not available" });
     }
 
-    if (quantity > variant.quantity) {
+    if (parsedQty > variant.quantity) {
       return res.status(400).json({
         message: `Only ${variant.quantity} available for ${color}/${size}`
       });
     }
 
-    if (quantity === 0) {
+    if (parsedQty === 0) {
       cart.items.splice(itemIndex, 1);
 
       if (cart.items.length === 0) {
@@ -203,7 +219,7 @@ export const updateItemQuantity = async (req, res, next) => {
         return res.status(200).json({ message: "Cart is now empty and has been removed" });
       }
     } else {
-      cart.items[itemIndex].quantity = quantity;
+      cart.items[itemIndex].quantity = parsedQty;
     }
 
     await cart.save();
@@ -214,13 +230,14 @@ export const updateItemQuantity = async (req, res, next) => {
     });
 
     res.status(200).json({
-      message: quantity === 0 ? "Item removed from cart" : "Quantity updated",
+      message: parsedQty === 0 ? "Item removed from cart" : "Quantity updated",
       cart: formatCartWithSubTotal(cart)
     });
   } catch (err) {
     next(err);
   }
 };
+
 
 // ✅ Clear cart
 export const clearCart = async (req, res, next) => {
