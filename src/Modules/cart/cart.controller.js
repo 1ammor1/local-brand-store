@@ -45,136 +45,67 @@ function formatCartWithSubTotal(cartDoc) {
 // ✅ Add to cart
 export const addToCart = async (req, res, next) => {
   try {
-    const { productId, quantity = 1, color, size } = req.body;
     const userId = req.user.id;
+    const { productId, color, size, quantity } = req.body;
 
     const product = await ProductModel.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
     const variant = product.variants.find(v => v.color === color && v.size === size);
-    if (!variant) {
-      return res.status(400).json({ message: "Selected color/size is not available" });
-    }
-
-    if (quantity > variant.quantity) {
-      return res.status(400).json({
-        message: `Only ${variant.quantity} pieces available for ${color} / ${size}`
-      });
-    }
+    if (!variant) return res.status(400).json({ message: "Variant not available" });
+    if (variant.quantity < quantity) return res.status(400).json({ message: "Insufficient stock" });
 
     let cart = await CartModel.findOne({ user: userId });
+    if (!cart) cart = await CartModel.create({ user: userId, items: [] });
 
-    if (!cart) {
-      if (quantity > 8) {
-        return res.status(400).json({ message: "You can't add more than 8 pieces" });
-      }
+    const existingItem = cart.items.find(
+      item =>
+        item.product.toString() === productId &&
+        item.color === color &&
+        item.size === size
+    );
 
-      cart = await CartModel.create({
-        user: userId,
-        items: [{ product: productId, quantity, color, size }]
-      });
+    if (existingItem) {
+      existingItem.quantity += quantity;
     } else {
-      const existingItem = cart.items.find(
-        item =>
-          item.product.toString() === productId &&
-          item.color === color &&
-          item.size === size
-      );
-
-      const totalQty = (existingItem?.quantity || 0) + quantity;
-
-      if (totalQty > 8) {
-        return res.status(400).json({
-          message: "You can't add more than 8 pieces of this product to the cart"
-        });
-      }
-
-      if (totalQty > variant.quantity) {
-        return res.status(400).json({
-          message: `Only ${variant.quantity - (existingItem?.quantity || 0)} more available`
-        });
-      }
-
-      if (existingItem) {
-        existingItem.quantity = totalQty;
-      } else {
-        cart.items.push({ product: productId, quantity, color, size });
-      }
-
-      await cart.save();
+      cart.items.push({ product: productId, color, size, quantity });
     }
 
-    await cart.populate({
-      path: "items.product",
-      select: "title price originalPrice discount variants images"
-    });
-
-    return res.status(200).json({
-      message: "Added to cart",
-      cart: formatCartWithSubTotal(cart)
-    });
+    await cart.save();
+    res.status(200).json({ message: "Added to cart", cart });
   } catch (err) {
     next(err);
   }
 };
+
 
 // ✅ Get cart
 export const getCart = async (req, res, next) => {
   try {
-    const cart = await CartModel.findOne({ user: req.user.id }).populate({
-      path: "items.product",
-      select: "title price originalPrice images"
+    const cart = await CartModel.findOne({ user: req.user.id }).populate("items.product");
+    if (!cart) return res.status(200).json({ cart: [] });
+
+    const items = cart.items.map(item => {
+      const product = item.product;
+      const variant = product?.variants?.find(v => v.color === item.color && v.size === item.size);
+      return {
+        _id: item._id,
+        product: product?._id || null,
+        title: product?.title || "",
+        image: product?.images?.[0]?.url || "",
+        price: product?.price || 0,
+        color: item.color,
+        size: item.size,
+        quantity: item.quantity,
+        inStock: variant?.quantity || 0
+      };
     });
 
-    if (!cart || !cart.items.length) {
-      return res.status(200).json({
-        cartDetails: {
-          items: [],
-          subTotal: 0
-        }
-      });
-    }
-
-    let subTotal = 0;
-
-    // ✨ فلترة العناصر اللي المنتج فيها null
-    const formattedItems = cart.items
-      .filter(item => item.product !== null)
-      .map(item => {
-        const product = item.product;
-        const quantity = item.quantity || 0;
-        const price = product.price || 0;
-
-        subTotal += price * quantity;
-
-        return {
-          product: {
-            _id: product._id,
-            id: product._id,
-            title: product.title,
-            originalPrice: product.originalPrice,
-            price: product.price,
-            imageUrl: product.images?.[0]?.url || "",
-            images: product.images
-          },
-          quantity: item.quantity,
-          color: item.color,
-          size: item.size
-        };
-      });
-
-    return res.status(200).json({
-      cart: {
-        items: formattedItems,
-        subTotal: parseFloat(subTotal.toFixed(2))
-      }
-    });
-
+    res.status(200).json({ cart: items });
   } catch (err) {
     next(err);
   }
 };
-
 
 
 // ✅ Remove from cart
