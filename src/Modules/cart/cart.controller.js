@@ -188,6 +188,7 @@ export const updateItemQuantity = async (req, res, next) => {
     );
 
     if (itemIndex === -1) {
+      console.log("Item not found in cart with given product/color/size");
       return res.status(404).json({ message: "Item not found in cart" });
     }
 
@@ -205,8 +206,8 @@ export const updateItemQuantity = async (req, res, next) => {
       });
     }
 
-    // ✅ Remove if quantity less than 1
     if (parsedQty < 1) {
+      console.log("Removing item from cart due to qty < 1");
       cart.items.splice(itemIndex, 1);
 
       if (cart.items.length === 0) {
@@ -232,6 +233,7 @@ export const updateItemQuantity = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 
