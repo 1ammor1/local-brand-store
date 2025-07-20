@@ -21,6 +21,7 @@ export const createOrder = async (req, res, next) => {
       paymentMethod = "cash"
     } = req.body;
 
+    // Validate governorate
     if (!gov || !Governorates.includes(gov)) {
       return res.status(400).json({ message: "Valid shipping address is required" });
     }
@@ -28,11 +29,13 @@ export const createOrder = async (req, res, next) => {
     const shipping = shippingPrices[gov] || 0;
     const shippingAddress = { fullName, phone, anotherPhone, addressLine, city, gov, country };
 
+    // Get cart
     const cart = await CartModel.findOne({ user: userId }).populate("items.product");
-    if (!cart || !cart.items.length) {
+    if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
+    // Generate order number
     const counter = await CounterModel.findOneAndUpdate(
       { name: "orderNumber" },
       { $inc: { value: 1 } },
@@ -50,13 +53,18 @@ export const createOrder = async (req, res, next) => {
 
       if (!product) continue;
 
-      const variant = product.variants.find(v => v.color === color && v.size === size);
-      if (!variant) {
+      // Find variant
+      const variantIndex = product.variants.findIndex(v => v.color === color && v.size === size);
+      if (variantIndex === -1) {
         return res.status(400).json({ message: `Variant not found for product: ${product.title}` });
       }
 
+      const variant = product.variants[variantIndex];
+
       if (variant.quantity < quantity) {
-        return res.status(400).json({ message: `Insufficient stock for ${product.title} (${color}, ${size})` });
+        return res.status(400).json({
+          message: `Insufficient stock for ${product.title} (${color}, ${size})`
+        });
       }
 
       const originalPrice = product.originalPrice || product.price;
@@ -71,6 +79,7 @@ export const createOrder = async (req, res, next) => {
         priceAfterDiscount = originalPrice - discountValuePerItem;
       }
 
+      // Ensure numbers are rounded
       discountValuePerItem = parseFloat(discountValuePerItem.toFixed(2));
       priceAfterDiscount = parseFloat(priceAfterDiscount.toFixed(2));
       const totalDiscount = parseFloat((discountValuePerItem * quantity).toFixed(2));
@@ -80,6 +89,7 @@ export const createOrder = async (req, res, next) => {
       subTotal += totalOriginalPrice;
       totalDiscountAllItems += totalDiscount;
 
+      // Push order item
       orderItems.push({
         product: product._id,
         quantity,
@@ -100,14 +110,16 @@ export const createOrder = async (req, res, next) => {
         },
       });
 
-      variant.quantity -= quantity;
-      await product.save();
+      // Deduct quantity from variant
+      product.variants[variantIndex].quantity -= quantity;
+      await product.save(); // Save updated variant
     }
 
     subTotal = parseFloat(subTotal.toFixed(2));
     totalDiscountAllItems = parseFloat(totalDiscountAllItems.toFixed(2));
     const Total = parseFloat((subTotal - totalDiscountAllItems + shipping).toFixed(2));
 
+    // Create order
     const order = await OrderModel.create({
       user: userId,
       orderNumber,
@@ -121,18 +133,15 @@ export const createOrder = async (req, res, next) => {
       notes,
     });
 
+    // Create notifications
     const admins = await UserModel.find({ role: "admin" });
-
     const notifications = [
-      // Notifications for all admins
       ...admins.map((admin) => ({
         recipient: admin._id,
         title: "🚚 New order",
         message: `A new order has been created ${order.orderNumber}`,
         order: order._id,
       })),
-
-      // Notification for the user who made the order
       {
         recipient: userId,
         title: "🧾 Order received",
@@ -142,6 +151,8 @@ export const createOrder = async (req, res, next) => {
     ];
 
     await NotificationModel.insertMany(notifications);
+
+    // Clear cart
     await CartModel.deleteOne({ user: userId });
 
     res.status(201).json({ message: "Order created", order });
