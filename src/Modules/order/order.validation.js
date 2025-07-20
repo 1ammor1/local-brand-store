@@ -10,7 +10,7 @@ export const createOrderSchema = Joi.object({
   gov: Joi.string().valid(...Governorates).required(),
   country: Joi.string().default("Egypt").optional(),
 
-  notes: Joi.string().allow("").optional(),
+  notes: Joi.string().allow("",null).optional(),
   paymentMethod: Joi.string().valid("cash", "card").default("cash"),
 });
 
