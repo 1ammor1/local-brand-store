@@ -16,10 +16,11 @@ const orderItemSchema = new mongoose.Schema({
     },
     discountValuePerItem: Number,
     totalDiscount: Number,
-    totalForThisItem: Number
+    totalForThisItem: Number,
+    color: String, // ✅ مضافة
+    size: String   // ✅ مضافة
   }
 });
-
 
 const orderSchema = new mongoose.Schema(
   {
@@ -31,12 +32,12 @@ const orderSchema = new mongoose.Schema(
     },
     items: [orderItemSchema],
     subTotal: { type: Number, required: true },
-    discount: { type: Number},    
+    discount: { type: Number },    
     shipping: { type: Number },
     Total: { type: Number },
     status: {
       type: String,
-      enum: [ "pending","processing","shipped","delivered","cancelled"],
+      enum: [ "pending", "processing", "shipped", "delivered", "cancelled" ],
       default: "pending"
     },
     paymentMethod: {
@@ -56,6 +57,5 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 
 export const OrderModel = mongoose.model("Order", orderSchema);
