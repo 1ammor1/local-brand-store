@@ -45,10 +45,13 @@ function formatCartWithSubTotal(cartDoc) {
 export const addToCart = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { productId, color, size, quantity } = req.body;
+    const { productId, color, size } = req.body;
 
-    const parsedQty = Number(quantity);
-    if (isNaN(parsedQty) || parsedQty <= 0) {
+    // ✅ Set default quantity = 1 if not provided
+    let quantity = req.body.quantity ?? 1;
+
+    quantity = Number(quantity);
+    if (isNaN(quantity) || quantity <= 0) {
       return res.status(400).json({ message: "Quantity must be a valid number greater than 0" });
     }
 
@@ -58,7 +61,9 @@ export const addToCart = async (req, res, next) => {
     const variant = product.variants.find(v => v.color === color && v.size === size);
     if (!variant) return res.status(400).json({ message: "Variant not available" });
 
-    if (variant.quantity < parsedQty) return res.status(400).json({ message: "Insufficient stock" });
+    if (variant.quantity < quantity) {
+      return res.status(400).json({ message: "Insufficient stock" });
+    }
 
     let cart = await CartModel.findOne({ user: userId });
     if (!cart) cart = await CartModel.create({ user: userId, items: [] });
@@ -71,9 +76,9 @@ export const addToCart = async (req, res, next) => {
     );
 
     if (existingItem) {
-      existingItem.quantity += parsedQty;
+      existingItem.quantity += quantity;
     } else {
-      cart.items.push({ product: productId, color, size, quantity: parsedQty });
+      cart.items.push({ product: productId, color, size, quantity });
     }
 
     await cart.save();
@@ -88,6 +93,7 @@ export const addToCart = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 // ✅ Get cart
