@@ -170,9 +170,25 @@ export const refreshToken = async (req, res, next) => {
 
 export const logout = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
-    res.status(200).json({ message: "Logged out" });
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.accessToken = null;
+    user.accessTokenExpiresAt = null;
+    user.isLoggedIn = false;
+    await user.save();
+
+    res.status(200).json({ message: "Logged out successfully" });
   } catch (err) {
     next(err);
   }
 };
+
