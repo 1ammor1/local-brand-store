@@ -13,7 +13,7 @@ router.get("/all", authentication, allowedRoles("admin"), getAllOrders);
 
 router.get("/orders", authentication, allowedRoles("admin"), getOrdersByStatus);
 
-router.patch("/:id/cancel", authentication,cancelOrder);
+router.delete("/:id/cancel", authentication,cancelOrder);
 
 router.patch("/:id/status", authentication, allowedRoles("admin"),validation(orderValidation.updateOrderStatusSchema), updateOrderStatus);
 
