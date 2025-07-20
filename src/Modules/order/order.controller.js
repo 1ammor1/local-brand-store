@@ -166,40 +166,58 @@ export const createOrder = async (req, res, next) => {
 export const getSingleOrder = async (req, res, next) => {
   try {
     const id = req.params.id;
-    const order = await OrderModel.findById(id);
+    const order = await OrderModel.findById(id)
+      .populate("user", "name email"); // لو عايز بيانات المستخدم
+
     if (!order) return res.status(404).json({ message: "Order not found" });
+
     res.status(200).json({ order });
-  } catch (err) {
-    next(err);
-  }
-}
-export const getAllOrders = async (req, res, next) => {
-  try {
-    const orders = await OrderModel.find()
-      .sort({ createdAt: -1 });
-    return res.status(200).json({ orders });
   } catch (err) {
     next(err);
   }
 };
 
-export const getOrdersByStatus = async (req, res, next) => {
+export const getAllOrders = async (req, res, next) => {
   try {
-    const { status } = req.query;
-    if(!status) return res.status(400).json({ message: "Status is required" });
-    if(status !== "pending" && status !== "confirmed" && status !== "shipped" && status !== "delivered" && status !== "cancelled") return res.status(400).json({ message: "status must be pending, confirmed, shipped, delivered, or cancelled" });
-    const orders = await OrderModel.find({ status }).sort({ createdAt: -1 });
-    if (!orders) return res.status(404).json({ message: "Orders not found" });
+    const orders = await OrderModel.find()
+      .populate("user", "name email")
+      .sort({ createdAt: -1 });
+
     res.status(200).json({ orders });
   } catch (err) {
     next(err);
   }
 };
 
+
+export const getOrdersByStatus = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+
+    const validStatuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
+    if (!status) return res.status(400).json({ message: "Status is required" });
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: `Status must be one of: ${validStatuses.join(", ")}` });
+    }
+
+    const orders = await OrderModel.find({ status })
+      .populate("user", "name email")
+      .sort({ createdAt: -1 });
+
+    if (!orders.length) return res.status(404).json({ message: "No orders found for this status" });
+
+    res.status(200).json({ orders });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 export const getUserOrders = async (req, res, next) => {
   try {
     const orders = await OrderModel.find({ user: req.user.id })
-  .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 });
+
     res.status(200).json({ orders });
   } catch (err) {
     next(err);
