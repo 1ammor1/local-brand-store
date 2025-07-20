@@ -13,6 +13,6 @@ router.put(
   validation(userValidation.updateProfileSchema),
   userController.updateProfile
 );
-router.get("/logout", authentication, userController.logout);
+router.post("/logout", authentication, userController.logout);
 
 export default router;
