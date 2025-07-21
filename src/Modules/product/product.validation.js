@@ -47,11 +47,11 @@ export const createProductSchema = Joi.object({
 
 // 🆙 لتحديث منتج
 export const updateProductSchema = Joi.object({
-  title: Joi.string().allow('').optional(),
-  description: Joi.string().allow('').optional(),
+  title: Joi.string().min(3).max(100).optional().empty(''),
+  description: Joi.string().max(1000).optional().empty(''),
 
   originalPrice: Joi.number().positive().optional(),
-  price: Joi.number().positive(), // عادة بيتحسب تلقائي بس حاطينه اختياري
+  price: Joi.number().positive().optional(),
 
   discount: Joi.string().custom((value, helpers) => {
     try {
@@ -72,7 +72,7 @@ export const updateProductSchema = Joi.object({
     }
   }).optional(),
 
-  category: Joi.string().pattern(/^[0-9a-fA-F]{24}$/),
+  category: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).optional(),
 
   variants: Joi.string().custom((value, helpers) => {
     try {
@@ -80,15 +80,17 @@ export const updateProductSchema = Joi.object({
       if (!Array.isArray(parsed)) {
         return helpers.message('"variants" must be an array');
       }
-      for (const v of parsed) {
+
+      for (const [index, v] of parsed.entries()) {
         if (
-          typeof v.size !== "string" ||
-          typeof v.color !== "string" ||
+          typeof v.size !== "string" || v.size.trim() === "" ||
+          typeof v.color !== "string" || v.color.trim() === "" ||
           typeof v.quantity !== "number"
         ) {
-          return helpers.message('"variants" array is invalid');
+          return helpers.message(`"variants[${index}]" is invalid: size and color must be non-empty strings, quantity must be a number`);
         }
       }
+
       return value;
     } catch {
       return helpers.message('"variants" must be a valid JSON array');
