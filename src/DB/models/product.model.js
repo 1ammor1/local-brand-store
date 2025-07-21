@@ -8,9 +8,9 @@ const variantSchema = new mongoose.Schema({
 
 const productSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true },
-    description: String,
-    originalPrice: { type: Number, required: true },
+    title: { type: String, required: false },
+    description: {type:String, required:false},
+    originalPrice: { type: Number, required: false },
     price: { type: Number, required: true },
     discount: {
       amount: Number,
