@@ -47,8 +47,8 @@ export const createProductSchema = Joi.object({
 
 // 🆙 لتحديث منتج
 export const updateProductSchema = Joi.object({
-  title: Joi.string().min(3).max(100).optional(),
-  description: Joi.string().max(1000).optional(),
+  title: Joi.string().allow('').optional(),
+  description: Joi.string().allow('').optional(),
 
   originalPrice: Joi.number().positive().optional(),
   price: Joi.number().positive(), // عادة بيتحسب تلقائي بس حاطينه اختياري
