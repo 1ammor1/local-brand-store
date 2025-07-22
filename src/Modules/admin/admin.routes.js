@@ -14,7 +14,7 @@ const router = express.Router();
 router.use(authentication, allowedRoles("admin"));
 
 router.get("/users", getAllUsers);
-router.patch("/users/:id/promote",validation(adminValidation.promoteUserSchema), promoteUser);
+router.put("/users/:id/promote",validation(adminValidation.promoteUserSchema), promoteUser);
 router.delete("/users/:id", validation(adminValidation.deleteUserSchema), deleteUser);
 router.get("/extended-stats", authentication, allowedRoles("admin"), getExtendedStats);
 
