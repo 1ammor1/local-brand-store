@@ -190,13 +190,13 @@ export const getExtendedStats = async (req, res, next) => {
       OrderModel.aggregate([
         {
           $group: {
-            _id: "$shippingAddress.city",
+            _id: "$shippingAddress.gov",
             count: { $sum: 1 }
           }
         },
         {
           $project: {
-            city: "$_id",
+            gov: "$_id",
             count: 1,
             _id: 0
           }
