@@ -43,22 +43,28 @@ export const getAllUsers = async (req, res) => {
 
 
 export const promoteUser = async (req, res) => {
-  const { role } = req.body;
+  try {
+    const user = await UserModel.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-  if (!Object.values(roles).includes(role)) {
-    return res.status(400).json({ message: "Invalid role" });
+    let newRole;
+    if (user.role === "admin") {
+      newRole = "user";
+    } else if (user.role === "user") {
+      newRole = "admin";
+    } else {
+      return res.status(400).json({ message: "Cannot toggle this user's role" });
+    }
+
+    user.role = newRole;
+    await user.save();
+
+    res.status(200).json({ message: `User role changed to ${newRole}`, user });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-
-  const user = await UserModel.findByIdAndUpdate(
-    req.params.id,
-    { role },
-    { new: true }
-  );
-
-  if (!user) return res.status(404).json({ message: "User not found" });
-
-  res.status(200).json({ message: `User promoted to ${role}` });
 };
+
 
 export const deleteUser = async (req, res) => {
   const user = await UserModel.findByIdAndDelete(req.params.id);
