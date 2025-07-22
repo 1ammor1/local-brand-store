@@ -46,6 +46,7 @@ export const promoteUser = async (req, res) => {
   try {
     const user = await UserModel.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
+    if(user.confirmEmail == false) return res.status(400).json({ message: "User's role can't be changed until its email confirmed" });
 
     let newRole;
     if (user.role === "admin") {
