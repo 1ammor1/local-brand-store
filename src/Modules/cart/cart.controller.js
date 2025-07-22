@@ -104,13 +104,31 @@ export const addToCart = async (req, res, next) => {
 export const getCart = async (req, res, next) => {
   try {
     const cart = await CartModel.findOne({ user: req.user.id }).populate("items.product");
-    if (!cart) return res.status(200).json({ cart: [] });
 
-    res.status(200).json({ cart: formatCartWithSubTotal(cart) });
+    if (!cart) {
+      return res.status(200).json({
+        cart: [],
+        subTotal: 0
+      });
+    }
+
+#    if (!cart.items || cart.items.length === 0) {
+      return res.status(200).json({
+        cart: [],
+        subTotal: 0
+      });
+    }
+
+    // في منتجات، نستخدم دالة الحساب
+    res.status(200).json({
+      cart: formatCartWithSubTotal(cart)
+    });
+
   } catch (err) {
     next(err);
   }
 };
+
 
 
 // ✅ Remove from cart
