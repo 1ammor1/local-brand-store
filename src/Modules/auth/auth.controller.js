@@ -62,6 +62,8 @@ export const login = async (req, res, next) => {
       });
     }
 
+    const Role = user.role;
+    
     const now = new Date();
     if (user.isLoggedIn && user.accessToken && user.accessTokenExpiresAt > now)
       return res.status(200).json({
@@ -81,7 +83,7 @@ export const login = async (req, res, next) => {
     user.lastLogin = new Date();
     await user.save();
 
-    res.status(200).json({ message: "Login successful", accessToken });
+    res.status(200).json({ message: "Login successful", accessToken , Role });
   } catch (err) {
     next(err);
   }
