@@ -172,43 +172,37 @@ export const getSingleOrder = async (req, res, next) => {
   try {
     const id = req.params.id;
     const order = await OrderModel.findById(id)
-      .populate("user", "name email");
+      .populate("user", "name email")
+      .lean(); // مهم جدًا: يحول الـ Document إلى Object عادي عشان نقدر نعدله
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     // دمج العناصر المتكررة
-    const mergedItems = [];
+    const mergedItemsMap = new Map();
 
     for (const item of order.items) {
-      const { product, snapshot, quantity } = item;
-      const key = `${product}_${snapshot.color}_${snapshot.size}`;
+      const key = `${item.product}_${item.snapshot.color}_${item.snapshot.size}`;
 
-      const existingItem = mergedItems.find(
-        (i) =>
-          i.product === product &&
-          i.snapshot.color === snapshot.color &&
-          i.snapshot.size === snapshot.size
-      );
-
-      if (existingItem) {
-        existingItem.quantity += quantity;
-        existingItem.snapshot.totalForThisItem += snapshot.totalForThisItem;
-        existingItem.snapshot.totalDiscount += snapshot.totalDiscount;
+      if (mergedItemsMap.has(key)) {
+        const existingItem = mergedItemsMap.get(key);
+        existingItem.quantity += item.quantity;
+        existingItem.snapshot.totalForThisItem += item.snapshot.totalForThisItem;
+        existingItem.snapshot.totalDiscount += item.snapshot.totalDiscount;
       } else {
-        mergedItems.push({
-          ...item.toObject(), // لو انت بتستخدم Mongoose
-        });
+        // ننسخ العنصر عشان ما نأثرش على الأصل
+        mergedItemsMap.set(key, { ...item });
       }
     }
 
-    // استبدال العناصر الأصلية بالنسخة المدمجة
-    order.items = mergedItems;
+    // تحويل الـ Map إلى مصفوفة
+    order.items = Array.from(mergedItemsMap.values());
 
     res.status(200).json({ order });
   } catch (err) {
     next(err);
   }
 };
+
 
 
 export const getAllOrders = async (req, res, next) => {
