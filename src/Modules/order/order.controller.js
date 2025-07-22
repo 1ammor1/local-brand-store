@@ -172,15 +172,44 @@ export const getSingleOrder = async (req, res, next) => {
   try {
     const id = req.params.id;
     const order = await OrderModel.findById(id)
-      .populate("user", "name email"); // لو عايز بيانات المستخدم
+      .populate("user", "name email");
 
     if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // دمج العناصر المتكررة
+    const mergedItems = [];
+
+    for (const item of order.items) {
+      const { product, snapshot, quantity } = item;
+      const key = `${product}_${snapshot.color}_${snapshot.size}`;
+
+      const existingItem = mergedItems.find(
+        (i) =>
+          i.product === product &&
+          i.snapshot.color === snapshot.color &&
+          i.snapshot.size === snapshot.size
+      );
+
+      if (existingItem) {
+        existingItem.quantity += quantity;
+        existingItem.snapshot.totalForThisItem += snapshot.totalForThisItem;
+        existingItem.snapshot.totalDiscount += snapshot.totalDiscount;
+      } else {
+        mergedItems.push({
+          ...item.toObject(), // لو انت بتستخدم Mongoose
+        });
+      }
+    }
+
+    // استبدال العناصر الأصلية بالنسخة المدمجة
+    order.items = mergedItems;
 
     res.status(200).json({ order });
   } catch (err) {
     next(err);
   }
 };
+
 
 export const getAllOrders = async (req, res, next) => {
   try {
