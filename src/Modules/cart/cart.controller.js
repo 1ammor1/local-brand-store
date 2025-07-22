@@ -105,29 +105,20 @@ export const getCart = async (req, res, next) => {
   try {
     const cart = await CartModel.findOne({ user: req.user.id }).populate("items.product");
 
-    if (!cart) {
+    if (!cart || !cart.items || cart.items.length === 0) {
       return res.status(200).json({
         cart: [],
         subTotal: 0
       });
     }
 
-#    if (!cart.items || cart.items.length === 0) {
-      return res.status(200).json({
-        cart: [],
-        subTotal: 0
-      });
-    }
-
-    // في منتجات، نستخدم دالة الحساب
-    res.status(200).json({
-      cart: formatCartWithSubTotal(cart)
-    });
+    res.status(200).json(formatCartWithSubTotal(cart));
 
   } catch (err) {
     next(err);
   }
 };
+
 
 
 
