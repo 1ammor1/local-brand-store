@@ -255,58 +255,110 @@ export const getUserOrders = async (req, res, next) => {
 export const cancelOrder = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const order = await OrderModel.findById(id);
+
+    const order = await OrderModel.findById(id).populate("items.product");
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if(order.user._id.toString() !== req.user.id && req.user.role !== "admin") return res.status(401).json({ message: "You are not authorized to cancel this order" });
-    if(order.status !== "pending") return res.status(400).json({ message: "Order can only be cancelled if it is in pending status" });
+
+    if (order.user._id.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(401).json({ message: "You are not authorized to cancel this order" });
+    }
+
+    if (order.status !== "pending") {
+      return res.status(400).json({ message: "Order can only be cancelled if it is in pending status" });
+    }
+
+    // ✅ إرجاع الكمية للمنتجات
+    for (const item of order.items) {
+      const product = item.product;
+      const { quantity, snapshot } = item;
+      const { color, size } = snapshot;
+
+      if (!product) continue;
+
+      const variantIndex = product.variants.findIndex(v =>
+        v.color === color && v.size === size
+      );
+
+      if (variantIndex !== -1) {
+        product.variants[variantIndex].quantity += quantity;
+        await product.save();
+      }
+    }
+
     order.status = "cancelled";
     await order.save();
+
     const admins = await UserModel.find({ role: "admin" });
+
     const adminNotifs = admins.map(admin => ({
-    recipient: admin._id,
-    title: "Order cancelled ❌",
-    message: `${order.orderNumber} has been cancelled by the user.`,
-    order: order._id
-  }));
+      recipient: admin._id,
+      title: "Order cancelled ❌",
+      message: `${order.orderNumber} has been cancelled by the user.`,
+      order: order._id
+    }));
 
-  const userNotif = {
-    recipient: order.user._id,
-    title: "Your order has been cancelled ❌",
-    message: `Your order ${order.orderNumber} has been successfully cancelled.`,
-    order: order._id
-  };
-
+    const userNotif = {
+      recipient: order.user._id,
+      title: "Your order has been cancelled ❌",
+      message: `Your order ${order.orderNumber} has been successfully cancelled.`,
+      order: order._id
+    };
 
     await NotificationModel.insertMany([...adminNotifs, userNotif]);
-    res.status(200).json({ message: "Order cancelled", order });
+
+    res.status(200).json({ message: "Order cancelled and stock restored", order });
   } catch (err) {
     next(err);
   }
-}
+};
+
 
 export const updateOrderStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    const order = await OrderModel.findById(id);
+    const order = await OrderModel.findById(id).populate("items.product");
     if (!order) return res.status(404).json({ message: "Order not found" });
+
+    const oldStatus = order.status;
+
+    // ✅ إذا كانت الحالة الجديدة "cancelled" وكان الأوردر مش ملغي بالفعل
+    if (status === "cancelled" && oldStatus !== "cancelled") {
+      for (const item of order.items) {
+        const product = item.product;
+        const { quantity, snapshot } = item;
+        const { color, size } = snapshot;
+
+        if (!product) continue;
+
+        const variantIndex = product.variants.findIndex(v =>
+          v.color === color && v.size === size
+        );
+
+        if (variantIndex !== -1) {
+          product.variants[variantIndex].quantity += quantity;
+          await product.save();
+        }
+      }
+    }
 
     order.status = status;
     await order.save();
-    await NotificationModel.create({
-    recipient: order.user._id,
-    title: "Update order status 🔄",
-    message: `Your order status ${order.orderNumber} has been updated to "${order.status}".`,
-    order: order._id
-  });
 
+    await NotificationModel.create({
+      recipient: order.user._id,
+      title: "Update order status 🔄",
+      message: `Your order status ${order.orderNumber} has been updated to "${order.status}".`,
+      order: order._id
+    });
 
     res.status(200).json({ message: "Order status updated", order });
   } catch (err) {
     next(err);
   }
 };
+
 
 export const deleteOrder = async (req, res, next) => {
   try {
