@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import { generateToken, verifyToken } from "./tokens.service.js";
 import { sendEmail } from "../../utils/email.js";
 
+
+
 export const register = async (req, res, next) => {
   try {
     const { firstName, lastName, email, password } = req.body;
@@ -110,16 +112,17 @@ export const verifyEmail = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (user.confirmEmail)
-      return res.status(400).json({ message: "Email already verified" });
+      return res.redirect(`${process.env.FRONT_URL}?message=already-verified`);
 
     user.confirmEmail = true;
     await user.save();
 
-    return res.status(200).json({ message: "Email verified successfully" });
+    return res.redirect(`${process.env.FRONT_URL}/login`);
   } catch (err) {
-    return res.status(400).json({ message: "Invalid or expired token" });
+    return res.redirect(`${process.env.FRONT_URL}?message=invalid-token`);
   }
 };
+
 
 export const forgotPassword = async (req, res, next) => {
   try {
