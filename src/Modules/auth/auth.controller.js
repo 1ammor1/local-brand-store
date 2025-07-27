@@ -96,7 +96,7 @@ export const sendVerificationEmail = async (req, res) => {
   if (!user) return res.status(404).json({ message: "User not found" });
 
   const token = generateToken({ email: user.email }, "15m");
-  const link = `${process.env.LOCAL_HOST}auth/verify/${token}`;
+  const link = `${process.env.REAL_HOST}auth/verify/${token}`;
   console.log("🔗 Email verification link:", link);
 
   return res.status(200).json({ message: "Verification email sent" });
