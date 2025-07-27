@@ -112,7 +112,7 @@ export const verifyEmail = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (user.confirmEmail)
-      return res.redirect(`${process.env.FRONT_URL}?message=already-verified`);
+      return res.redirect(`${process.env.FRONT_URL}/login`);
 
     user.confirmEmail = true;
     await user.save();
