@@ -12,7 +12,6 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, trim: true, lowercase: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, enum: Object.values(roles), default: roles.user },
-    isLoggedIn: { type: Boolean, default: false },
     confirmEmail: { type: Boolean, default: false },
     accessToken: { type: String },
     accessTokenExpiresAt: { type: Date },
