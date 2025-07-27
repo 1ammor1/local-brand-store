@@ -9,9 +9,9 @@ export const authentication = async (req, res, next) => {
   try {
     const decoded = verifyToken(token);
     req.user = decoded;
-    const user = await UserModel.findById(decoded.id).select("isLoggedIn");
+    const user = await UserModel.findById(decoded.id);
 
-    if (!user || !user.isLoggedIn) {
+    if (!user) {
       return res.status(401).json({ message: "You are not logged in!" });
     }
 
