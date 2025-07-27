@@ -54,7 +54,7 @@ export const login = async (req, res, next) => {
 
     if (!user.confirmEmail) {
       const token = generateToken({ id: user._id }, "15m");
-      const verificationLink = `${process.env.LOCAL_HOST}auth/verify/${token}`;
+      const verificationLink = `${process.env.REAL_HOST}auth/verify/${token}`;
       const html = `<p>Hello ${user.firstName}, verify your email:</p><a href="${verificationLink}">Verify</a>`;
       await sendEmail(user.email, "Verify Email to Login", html);
       return res.status(401).json({
